@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>МК4С — Кровельные материалы</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700&family=Geologica:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<header id="hdr">
+  <div class="logo">PLAT<em>FORMA</em></div>
+  <div id="srchwrap">
+    <svg class="si" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="5" stroke="white" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>
+    <input id="srch" placeholder="Поиск по каталогу..." autocomplete="off"/>
+    <div id="srch-dropdown" class="srch-dropdown" style="display:none"></div>
+  </div>
+  <div class="hbts">
+    <button class="hbt" id="mob-menu-btn" title="Меню" onclick="openMobDrawer()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <button class="hbt" id="calc-hbtn" title="Калькулятор" onclick="toggleCalc()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="14" y1="18" x2="16" y2="18"/></svg>
+    </button>
+    <button class="hbt" id="loyalty-hbtn" title="Карта лояльности" onclick="openLoyaltyModal()">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>
+    </button>
+    <button class="hbt" id="cart-hbtn" title="Корзина" onclick="openCart()">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+      <span class="cbadge" id="cbadge" style="display:none">0</span>
+    </button>
+  </div>
+</header>
+
+<div id="app">
+  <nav id="sidebar">
+    <div class="stitle">Каталог</div>
+    <div id="catlist"></div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-link" onclick="toggleCalc()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/></svg>
+      Калькулятор кровли
+    </div>
+    <div class="sidebar-loyalty" onclick="openLoyaltyModal()">
+      <div class="sl-top">
+        <div class="sl-icon">💳</div>
+        <div class="sl-badge">Кэшбэк 0.5%</div>
+      </div>
+      <div class="sl-title">Карта PLATFORMA
+</div>
+      <div class="sl-sub">Живой баланс · Персональные бонусы · Накопления с каждой покупки</div>
+      <div class="sl-btn">Оформить карту →</div>
+    </div>
+  </nav>
+  <main id="main"><div id="content"></div></main>
+</div>
+
+<!-- MOBILE NAV -->
+<div id="mobnav">
+  <div class="mobnav-inner">
+    <button class="mnbtn active" id="mn-catalog" onclick="mobNav('catalog')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Каталог
+    </button>
+    <button class="mnbtn" id="mn-search" onclick="mobNav('search')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      Поиск
+    </button>
+    <button class="mnbtn" id="mn-loyalty" onclick="openLoyaltyModal()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>
+      Карта
+    </button>
+    <button class="mnbtn" id="mn-cart" onclick="openCart()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+      Корзина
+      <span class="cbadge" id="cbadge2" style="display:none;position:static;width:auto;height:auto;border-radius:10px;padding:0 5px;font-size:9px;background:var(--accent)"></span>
+    </button>
+  </div>
+</div>
+
+<!-- MOBILE DRAWER -->
+<div id="mob-drawer-ovl" onclick="closeMobDrawer()" style="display:none"></div>
+<div id="mob-drawer" style="display:none">
+  <div class="mob-drawer-hdr">
+    <div class="logo" style="font-size:14px">PLAT<em>FORMA</em></div>
+    <button onclick="closeMobDrawer()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--muted)">✕</button>
+  </div>
+  <div class="stitle" style="padding-top:12px">Каталог</div>
+  <div id="mob-catlist"></div>
+</div>
+
+<!-- CART PANEL -->
+<div class="covl" id="covl" style="display:none" onclick="closeCart()"></div>
+<div class="cpanel" id="cpanel" style="display:none">
+  <div class="chdr">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+    <h2>Корзина</h2>
+    <button class="cclose" onclick="closeCart()">✕</button>
+  </div>
+  <div class="citems" id="citems"></div>
+  <div class="cftr" id="cftr"></div>
+</div>
+
+<!-- PRODUCT MODAL -->
+<div class="moverlay" id="movl" style="display:none" onclick="handleMovl(event)">
+  <div class="modal" id="minner" onclick="event.stopPropagation()">
+    <div class="mgal" id="mgal">
+      <button class="mcl" onclick="closeMod()">✕</button>
+      <div class="mgal-track" id="mgal-track">
+        <!-- images injected here -->
+      </div>
+      <div class="mgal-dots" id="mgal-dots"></div>
+      <div class="mthbs" id="mthbs"></div>
+    </div>
+    <div class="minfo" id="minfo"></div>
+  </div>
+</div>
+
+<!-- CHECKOUT MODAL -->
+<div class="moverlay" id="covl2" style="display:none" onclick="handleCOvl(event)">
+  <div class="comodal" id="comodal" onclick="event.stopPropagation()">
+    <div id="coinner"></div>
+  </div>
+</div>
+
+<!-- LOYALTY MODAL -->
+<div class="moverlay" id="loyalty-ovl" style="display:none" onclick="handleLoyaltyOvl(event)">
+  <div class="loyalty-modal" id="loyalty-modal" onclick="event.stopPropagation()">
+    <div id="loyalty-inner"></div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
