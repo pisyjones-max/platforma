@@ -10,6 +10,7 @@ let cart = JSON.parse(localStorage.getItem('platforma_cart') || '[]');
 let modalProd = null, modalVar = 0, modalImg = 0, modalQty = 1;
 let subMethod = 'telegram';
 let loyaltyCard = JSON.parse(localStorage.getItem('platforma_loyalty') || 'null');
+let zoomImages = [], zoomIndex = 0, zoomOpen = false;
 
 const DISCOUNT_RATE = 0.93;
 const CASHBACK_RATE = 0.005;
@@ -363,7 +364,7 @@ function renderModal() {
 
   document.getElementById('mgal-track').innerHTML = imgs.length
     ? imgs.map((src, i) =>
-        '<div class="mgal-slide"><img src="' + src + '" loading="' + (i === 0 ? 'eager' : 'lazy') + '" alt="' + p.title + '"/></div>'
+        '<div class="mgal-slide"><img src="' + src + '" loading="' + (i === 0 ? 'eager' : 'lazy') + '" alt="' + p.title + '" onclick="openZoom(' + i + ')" style="cursor:zoom-in"/></div>'
       ).join('')
     : '<div class="mgal-slide"><div class="ph-big">📦</div></div>';
 
@@ -979,10 +980,11 @@ function closeMobDrawer() {
   document.getElementById('mob-drawer').style.display = 'none';
 }
 
-// ══ KEYBOARD ════════════════════════════════════════════════════════════════
+// ══ KEYBOARD ══════════════════════════════════════════════════════════════════
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  if (document.getElementById('movl').style.display !== 'none') closeMod();
+  if (zoomOpen) closeZoom();
+  else if (document.getElementById('movl').style.display !== 'none') closeMod();
   else if (document.getElementById('covl2').style.display !== 'none') closeCheckout();
   else if (document.getElementById('loyalty-ovl').style.display !== 'none') closeLoyaltyModal();
   else if (document.getElementById('cpanel').style.display !== 'none') closeCart();
@@ -1039,6 +1041,135 @@ function getDemoCatalog() {
       }
     ]
   };
+}
+
+// ══ IMAGE ZOOM ══════════════════════════════════════════════════════════════
+function openZoom(imageIndex) {
+  if (!modalProd) return;
+  const v = modalProd.variants[modalVar];
+  const imgs = (v.images && v.images.length) ? v.images : [];
+  if (!imgs.length) return;
+  
+  zoomImages = imgs;
+  zoomIndex = imageIndex;
+  zoomOpen = true;
+  
+  const overlay = document.getElementById('zoom-overlay');
+  const img = document.getElementById('zoom-image');
+  const counter = document.getElementById('zoom-counter');
+  
+  img.src = zoomImages[zoomIndex];
+  img.alt = modalProd.title;
+  counter.textContent = `${zoomIndex + 1} / ${zoomImages.length}`;
+  
+  overlay.style.display = 'flex';
+  setTimeout(() => overlay.classList.add('open'), 10);
+  
+  updateZoomNavButtons();
+  document.body.style.overflow = 'hidden';
+  
+  // Add keyboard listeners
+  document.addEventListener('keydown', handleZoomKeyboard);
+  setupZoomTouch();
+}
+
+function closeZoom() {
+  const overlay = document.getElementById('zoom-overlay');
+  overlay.classList.remove('open');
+  setTimeout(() => {
+    overlay.style.display = 'none';
+    document.body.style.overflow = '';
+  }, 300);
+  
+  zoomOpen = false;
+  document.removeEventListener('keydown', handleZoomKeyboard);
+}
+
+function navigateZoom(direction) {
+  const newIndex = zoomIndex + direction;
+  if (newIndex < 0 || newIndex >= zoomImages.length) return;
+  
+  zoomIndex = newIndex;
+  const img = document.getElementById('zoom-image');
+  const counter = document.getElementById('zoom-counter');
+  
+  img.style.opacity = '0';
+  setTimeout(() => {
+    img.src = zoomImages[zoomIndex];
+    img.style.opacity = '1';
+  }, 150);
+  
+  counter.textContent = `${zoomIndex + 1} / ${zoomImages.length}`;
+  updateZoomNavButtons();
+}
+
+function updateZoomNavButtons() {
+  const prevBtn = document.getElementById('zoom-prev');
+  const nextBtn = document.getElementById('zoom-next');
+  
+  prevBtn.classList.toggle('disabled', zoomIndex === 0);
+  nextBtn.classList.toggle('disabled', zoomIndex === zoomImages.length - 1);
+}
+
+function handleZoomKeyboard(e) {
+  if (!zoomOpen) return;
+  
+  switch(e.key) {
+    case 'Escape':
+      closeZoom();
+      break;
+    case 'ArrowLeft':
+      navigateZoom(-1);
+      break;
+    case 'ArrowRight':
+      navigateZoom(1);
+      break;
+  }
+}
+
+function handleZoomOvl(e) {
+  if (e.target === document.getElementById('zoom-overlay')) {
+    closeZoom();
+  }
+}
+
+function setupZoomTouch() {
+  const container = document.getElementById('zoom-image-container');
+  if (!container) return;
+  
+  let startX = 0;
+  let currentX = 0;
+  let isDragging = false;
+  
+  const handleTouchStart = (e) => {
+    startX = e.touches[0].clientX;
+    isDragging = true;
+  };
+  
+  const handleTouchMove = (e) => {
+    if (!isDragging) return;
+    currentX = e.touches[0].clientX;
+  };
+  
+  const handleTouchEnd = () => {
+    if (!isDragging) return;
+    isDragging = false;
+    
+    const diff = startX - currentX;
+    const threshold = 50;
+    
+    if (Math.abs(diff) > threshold) {
+      if (diff > 0) {
+        navigateZoom(1); // Swipe left - next image
+      } else {
+        navigateZoom(-1); // Swipe right - previous image
+      }
+    }
+  };
+  
+  container.addEventListener('touchstart', handleTouchStart, { passive: true });
+  container.addEventListener('touchmove', handleTouchMove, { passive: true });
+  container.addEventListener('touchend', handleTouchEnd, { passive: true });
 }
 
 // ══ INIT ═══════════════════════════════════════════════════════════════════
