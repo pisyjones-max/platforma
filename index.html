@@ -134,27 +134,6 @@
   </div>
 </div>
 
-<!-- IMAGE ZOOM MODAL -->
-<div class="zoom-overlay" id="zoom-overlay" style="display:none" onclick="handleZoomOvl(event)">
-  <div class="zoom-modal" id="zoom-modal" onclick="event.stopPropagation()">
-    <button class="zoom-close" onclick="closeZoom()">✕</button>
-    <div class="zoom-image-container" id="zoom-image-container">
-      <img id="zoom-image" src="" alt="" />
-    </div>
-    <button class="zoom-nav zoom-prev" id="zoom-prev" onclick="navigateZoom(-1)">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <polyline points="15 18 9 12 15 6"></polyline>
-      </svg>
-    </button>
-    <button class="zoom-nav zoom-next" id="zoom-next" onclick="navigateZoom(1)">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <polyline points="9 18 15 12 9 6"></polyline>
-      </svg>
-    </button>
-    <div class="zoom-counter" id="zoom-counter"></div>
-  </div>
-</div>
-
 <script src="script.js"></script>
 </body>
 </html>
