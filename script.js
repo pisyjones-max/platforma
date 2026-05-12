@@ -363,7 +363,7 @@ function renderModal() {
 
   document.getElementById('mgal-track').innerHTML = imgs.length
     ? imgs.map((src, i) =>
-        '<div class="mgal-slide"><img src="' + src + '" loading="' + (i === 0 ? 'eager' : 'lazy') + '" alt="' + p.title + '"/></div>'
+        '<div class="mgal-slide"><img src="' + src + '" loading="' + (i === 0 ? 'eager' : 'lazy') + '" alt="' + p.title + '" onclick="openZoom(' + i + ')"/></div>'
       ).join('')
     : '<div class="mgal-slide"><div class="ph-big">📦</div></div>';
 
@@ -479,6 +479,102 @@ function copyLink(url) {
         '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg> Скопировать ссылку';
     }, 2200);
   }).catch(() => toast('Не удалось скопировать', 'error'));
+}
+
+// ══ IMAGE ZOOM ═════════════════════════════════════════════════════════════
+let zoomState = { isOpen: false, currentIndex: 0, images: [] };
+
+function openZoom(index) {
+  const p = modalProd;
+  const v = p.variants[modalVar];
+  zoomState.images = (v.images && v.images.length) ? v.images : [];
+  zoomState.currentIndex = index;
+  zoomState.isOpen = true;
+  renderZoom();
+  document.body.style.overflow = 'hidden';
+}
+
+function closeZoom() {
+  zoomState.isOpen = false;
+  document.getElementById('zoom-overlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function renderZoom() {
+  if (!zoomState.isOpen || !zoomState.images.length) return;
+
+  let overlay = document.getElementById('zoom-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'zoom-overlay';
+    overlay.className = 'zoom-overlay';
+    overlay.innerHTML = `
+      <div class="zoom-container">
+        <button class="zoom-close" onclick="closeZoom()">✕</button>
+        <button class="zoom-prev" onclick="navigateZoom(-1)" ${zoomState.images.length <= 1 ? 'style="display:none"' : ''}>‹</button>
+        <button class="zoom-next" onclick="navigateZoom(1)" ${zoomState.images.length <= 1 ? 'style="display:none"' : ''}>›</button>
+        <div class="zoom-image-container">
+          <img id="zoom-img" src="" alt=""/>
+        </div>
+        <div class="zoom-dots" id="zoom-dots"></div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  }
+
+  overlay.style.display = 'flex';
+  
+  const img = document.getElementById('zoom-img');
+  img.src = zoomState.images[zoomState.currentIndex];
+  img.onclick = (e) => {
+    e.stopPropagation();
+    closeZoom();
+  };
+
+  // Update dots
+  const dotsContainer = document.getElementById('zoom-dots');
+  if (zoomState.images.length > 1) {
+    dotsContainer.innerHTML = zoomState.images.map((_, i) => 
+      '<div class="zoom-dot ' + (i === zoomState.currentIndex ? 'active' : '') + '" onclick="goToZoom(' + i + ')"></div>'
+    ).join('');
+  }
+
+  // Update navigation buttons
+  const prevBtn = overlay.querySelector('.zoom-prev');
+  const nextBtn = overlay.querySelector('.zoom-next');
+  if (prevBtn) prevBtn.style.display = zoomState.images.length <= 1 ? 'none' : '';
+  if (nextBtn) nextBtn.style.display = zoomState.images.length <= 1 ? 'none' : '';
+
+  // Keyboard navigation
+  document.addEventListener('keydown', handleZoomKeydown);
+}
+
+function navigateZoom(direction) {
+  if (!zoomState.images.length) return;
+  
+  zoomState.currentIndex = (zoomState.currentIndex + direction + zoomState.images.length) % zoomState.images.length;
+  renderZoom();
+}
+
+function goToZoom(index) {
+  zoomState.currentIndex = index;
+  renderZoom();
+}
+
+function handleZoomKeydown(e) {
+  if (!zoomState.isOpen) return;
+  
+  switch(e.key) {
+    case 'Escape':
+      closeZoom();
+      break;
+    case 'ArrowLeft':
+      navigateZoom(-1);
+      break;
+    case 'ArrowRight':
+      navigateZoom(1);
+      break;
+  }
 }
 
 // ══ QUICK ADD ══════════════════════════════════════════════════════════════
