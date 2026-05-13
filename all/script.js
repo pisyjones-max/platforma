@@ -675,65 +675,6 @@ function findProd(id) {
   }
 }
 
-
-
-// ══ PRODUCT SCHEMA SEO ═════════════════════════════════════════════════════
-function injectProductSchema(prod, variant) {
-
-  const old = document.getElementById('product-schema');
-  if (old) old.remove();
-
-  const price = Math.round((variant.price || 0) * DISCOUNT_RATE);
-
-  const schema = {
-    "@context": "https://schema.org/",
-    "@type": "Product",
-
-    "name": prod.name + (variant.name ? ' — ' + variant.name : ''),
-    "description": prod.description || '',
-    "image": variant.images || [],
-
-    "sku": variant.sku || prod.id,
-    "mpn": variant.sku || prod.id,
-
-    "brand": {
-      "@type": "Brand",
-      "name": prod.brand || "PLATFORMA"
-    },
-
-    "category": activeCat?.name || '',
-
-    "offers": {
-      "@type": "Offer",
-      "url": window.location.href,
-      "priceCurrency": "RUB",
-      "price": price,
-      "availability": "https://schema.org/InStock",
-      "itemCondition": "https://schema.org/NewCondition",
-
-      "seller": {
-        "@type": "Organization",
-        "name": "PLATFORMA"
-      }
-    }
-  };
-
-  if (prod.rating) {
-    schema.aggregateRating = {
-      "@type": "AggregateRating",
-      "ratingValue": prod.rating,
-      "reviewCount": prod.reviewCount || 1
-    };
-  }
-
-  const script = document.createElement('script');
-  script.type = 'application/ld+json';
-  script.id = 'product-schema';
-  script.textContent = JSON.stringify(schema);
-
-  document.head.appendChild(script);
-}
-
 function openProd(id) {
   modalProd = findProd(id);
   if (!modalProd) return;
