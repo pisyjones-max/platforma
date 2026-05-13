@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Карта PLATFORMA — Одна карта для всей стройки</title>
+<meta name="description" content="Мультикарта выгод для строительной экосистемы. Бетон, кровля, гаражи, ворота — один баланс, несколько бизнесов."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700;900&family=Geologica:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+/* ═══════════════════════════════════════════════════════
+   PLATFORMA CARD — Landing Page
+   Palette, fonts: match платформа / sk-craft
+═══════════════════════════════════════════════════════ */
+*{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#F2F0EB;
+  --surface:#FFFFFF;
+  --surface2:#F8F6F2;
+  --border:#E4E1DA;
+  --accent:#BF3E22;
+  --accent-h:#a33318;
+  --dark:#192C1E;
+  --dark2:#253d2b;
+  --dark-h:#0f1f14;
+  --text:#1A1916;
+  --muted:#7B7772;
+  --green:#7ECC9A;
+  --green2:#2A7A4B;
+  --gold:#C8960C;
+  --fh:'Unbounded',sans-serif;
+  --fb:'Geologica',sans-serif;
+  --r:12px;
+  --rl:18px;
+}
+
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  font-family:var(--fb);
+  color:var(--text);
+  font-size:15px;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+a{color:inherit;text-decoration:none}
+button,input{font-family:var(--fb)}
+
+/* ═══ HEADER ═══════════════════════════════════════════ */
+header{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  background:rgba(25,44,30,.95);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  height:58px;display:flex;align-items:center;
+  padding:0 24px;gap:16px;
+  border-bottom:1px solid rgba(255,255,255,.07);
+}
+.logo{font-family:var(--fh);font-size:16px;font-weight:700;color:#fff;white-space:nowrap}
+.logo em{color:var(--green);font-style:normal}
+.logo span{opacity:.45;font-weight:400;margin-left:6px;font-size:11px;letter-spacing:1px;text-transform:uppercase}
+header nav{margin-left:auto;display:flex;align-items:center;gap:6px}
+.nav-link{
+  padding:7px 14px;border-radius:8px;
+  font-size:12.5px;color:rgba(255,255,255,.6);
+  transition:color .15s,background .15s;white-space:nowrap;
+}
+.nav-link:hover{color:#fff;background:rgba(255,255,255,.08)}
+.nav-cta{
+  padding:8px 18px;border-radius:9px;
+  background:var(--accent);color:#fff;
+  font-size:12.5px;font-weight:600;border:none;cursor:pointer;
+  transition:background .15s,transform .1s;
+}
+.nav-cta:hover{background:var(--accent-h);transform:translateY(-1px)}
+.mob-nav-cta{display:none}
+
+/* ═══ HERO ═══════════════════════════════════════════ */
+.hero{
+  min-height:100vh;
+  background:var(--dark);
+  position:relative;overflow:hidden;
+  display:flex;align-items:center;
+  padding:58px 0 0;
+}
+.hero-bg{
+  position:absolute;inset:0;
+  background:radial-gradient(ellipse 80% 70% at 70% 50%,rgba(126,204,154,.08) 0%,transparent 60%),
+             radial-gradient(ellipse 50% 80% at 10% 80%,rgba(191,62,34,.07) 0%,transparent 50%);
+}
+.hero-grid{
+  position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);
+  background-size:40px 40px;
+  mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 30%,transparent 100%);
+}
+.hero-inner{
+  position:relative;z-index:2;
+  width:100%;max-width:1200px;margin:0 auto;
+  padding:80px 24px 80px;
+  display:grid;grid-template-columns:1fr 1fr;
+  align-items:center;gap:60px;
+}
+.hero-tag{
+  display:inline-flex;align-items:center;gap:7px;
+  background:rgba(126,204,154,.12);
+  border:1px solid rgba(126,204,154,.25);
+  border-radius:20px;padding:5px 13px;
+  font-size:11px;font-weight:600;color:var(--green);
+  letter-spacing:.5px;text-transform:uppercase;margin-bottom:20px;
+}
+.hero-tag-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
+.hero h1{
+  font-family:var(--fh);font-size:clamp(28px,4vw,52px);
+  font-weight:900;color:#fff;line-height:1.12;
+  margin-bottom:20px;
+}
+.hero h1 em{color:var(--green);font-style:normal}
+.hero-sub{
+  font-size:clamp(14px,1.4vw,17px);color:rgba(255,255,255,.55);
+  line-height:1.7;max-width:480px;margin-bottom:36px;
+}
+.hero-btns{display:flex;gap:12px;flex-wrap:wrap}
+.btn-primary{
+  height:52px;padding:0 28px;border-radius:var(--r);
+  background:var(--accent);color:#fff;
+  font-size:15px;font-weight:600;border:none;cursor:pointer;
+  transition:background .15s,transform .15s,box-shadow .15s;
+  display:inline-flex;align-items:center;gap:9px;
+}
+.btn-primary:hover{background:var(--accent-h);transform:translateY(-2px);box-shadow:0 12px 32px rgba(191,62,34,.35)}
+.btn-secondary{
+  height:52px;padding:0 24px;border-radius:var(--r);
+  background:rgba(255,255,255,.08);color:#fff;
+  font-size:15px;font-weight:500;border:1px solid rgba(255,255,255,.15);
+  cursor:pointer;transition:background .15s,transform .15s;
+  display:inline-flex;align-items:center;gap:9px;
+}
+.btn-secondary:hover{background:rgba(255,255,255,.14);transform:translateY(-2px)}
+.hero-stats{
+  display:flex;gap:24px;margin-top:40px;flex-wrap:wrap;
+}
+.hero-stat{color:#fff}
+.hero-stat-num{font-family:var(--fh);font-size:24px;font-weight:700;color:var(--green)}
+.hero-stat-lbl{font-size:11px;color:rgba(255,255,255,.4);margin-top:2px}
+
+/* Hero card */
+.hero-card-wrap{
+  display:flex;justify-content:center;align-items:center;
+  position:relative;
+}
+.hero-card{
+  width:100%;max-width:380px;
+  background:linear-gradient(135deg,#192C1E 0%,#2d5238 45%,#1e3d29 100%);
+  border-radius:22px;
+  padding:28px 30px;
+  color:#fff;
+  position:relative;overflow:hidden;
+  box-shadow:0 40px 80px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.08);
+  animation:cardFloat 6s ease-in-out infinite;
+}
+@keyframes cardFloat{
+  0%,100%{transform:translateY(0) rotate(-1deg)}
+  50%{transform:translateY(-12px) rotate(0.5deg)}
+}
+.hc-blob1{
+  position:absolute;right:-40px;top:-40px;width:220px;height:220px;
+  border-radius:50%;background:radial-gradient(circle,rgba(126,204,154,.18) 0%,transparent 70%);
+  pointer-events:none;
+}
+.hc-blob2{
+  position:absolute;left:-30px;bottom:-50px;width:180px;height:180px;
+  border-radius:50%;background:radial-gradient(circle,rgba(191,62,34,.12) 0%,transparent 70%);
+  pointer-events:none;
+}
+.hc-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px}
+.hc-logo{font-family:var(--fh);font-weight:700}
+.hc-logo-main{font-size:16px;color:#fff}
+.hc-logo-main em{color:var(--green);font-style:normal}
+.hc-logo-sub{font-size:9px;opacity:.4;text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+.hc-chip{
+  width:38px;height:28px;border-radius:6px;
+  background:linear-gradient(135deg,var(--gold),#e8b020);
+  position:relative;overflow:hidden;
+}
+.hc-chip::after{
+  content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.08) 3px,rgba(0,0,0,.08) 4px);
+}
+.hc-number{
+  font-family:var(--fh);font-size:12px;letter-spacing:3.5px;
+  opacity:.45;margin-bottom:22px;
+}
+.hc-bottom{display:flex;align-items:flex-end;justify-content:space-between}
+.hc-bal-lbl{font-size:8px;text-transform:uppercase;letter-spacing:1px;opacity:.4;margin-bottom:4px}
+.hc-balance{font-family:var(--fh);font-size:32px;font-weight:700;color:var(--green);line-height:1}
+.hc-balance-sub{font-size:10px;opacity:.35;margin-top:3px}
+.hc-holder{font-size:10px;font-weight:600;opacity:.5;text-transform:uppercase;letter-spacing:1px}
+.hc-nfc{
+  position:absolute;bottom:28px;right:30px;
+  opacity:.2;
+}
+/* glow ring behind card */
+.hero-card-glow{
+  position:absolute;width:500px;height:500px;border-radius:50%;
+  background:radial-gradient(circle,rgba(126,204,154,.12) 0%,transparent 70%);
+  pointer-events:none;top:50%;left:50%;transform:translate(-50%,-50%);
+}
+
+/* floating badges */
+.hc-badge{
+  position:absolute;background:var(--surface);border-radius:12px;
+  box-shadow:0 12px 32px rgba(0,0,0,.2),0 0 0 1px rgba(0,0,0,.06);
+  padding:10px 14px;white-space:nowrap;
+  animation:badgeFloat 5s ease-in-out infinite;
+  backdrop-filter:blur(10px);
+}
+.hc-badge-1{top:-14px;left:-50px;animation-delay:.5s}
+.hc-badge-2{bottom:30px;right:-50px;animation-delay:1.5s}
+@keyframes badgeFloat{
+  0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}
+}
+.hcb-icon{font-size:18px;margin-bottom:3px}
+.hcb-val{font-family:var(--fh);font-size:13px;font-weight:700;color:var(--dark)}
+.hcb-lbl{font-size:10px;color:var(--muted)}
+
+/* ═══ SECTION BASE ═══════════════════════════════════════ */
+section{padding:96px 24px}
+.container{max-width:1200px;margin:0 auto}
+.section-tag{
+  display:inline-block;font-size:10px;font-weight:700;
+  letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--green2);background:rgba(42,122,75,.1);
+  padding:4px 12px;border-radius:20px;margin-bottom:16px;
+}
+.section-title{
+  font-family:var(--fh);font-size:clamp(24px,3vw,40px);
+  font-weight:700;line-height:1.2;margin-bottom:16px;
+}
+.section-sub{font-size:16px;color:var(--muted);line-height:1.7;max-width:560px}
+
+/* ═══ HOW IT WORKS ═══════════════════════════════════════ */
+.how-section{background:var(--dark)}
+.how-section .section-title{color:#fff}
+.how-section .section-sub{color:rgba(255,255,255,.45)}
+.how-section .section-tag{background:rgba(126,204,154,.1);color:var(--green)}
+.how-steps{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:2px;margin-top:56px;
+  border-radius:var(--rl);overflow:hidden;
+}
+.how-step{
+  background:rgba(255,255,255,.04);
+  padding:32px 28px;position:relative;
+  transition:background .2s;
+}
+.how-step:hover{background:rgba(255,255,255,.07)}
+.how-step-num{
+  font-family:var(--fh);font-size:48px;font-weight:900;
+  color:rgba(255,255,255,.06);line-height:1;margin-bottom:20px;
+}
+.how-step-icon{
+  width:48px;height:48px;border-radius:12px;
+  background:rgba(126,204,154,.12);
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;margin-bottom:16px;
+  border:1px solid rgba(126,204,154,.15);
+}
+.how-step-title{font-family:var(--fh);font-size:14px;font-weight:700;color:#fff;margin-bottom:8px}
+.how-step-text{font-size:13px;color:rgba(255,255,255,.4);line-height:1.6}
+
+/* ═══ PARTNERS / ECOSYSTEM ══════════════════════════════ */
+.eco-section{background:var(--surface)}
+.eco-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:16px;margin-top:48px;
+}
+.eco-card{
+  border-radius:var(--rl);border:1.5px solid var(--border);
+  overflow:hidden;transition:transform .2s,box-shadow .2s,border-color .2s;
+  background:var(--surface);
+  position:relative;
+}
+.eco-card:hover{
+  transform:translateY(-4px);
+  box-shadow:0 20px 48px rgba(0,0,0,.1);
+  border-color:var(--dark);
+}
+.eco-card-top{
+  background:var(--dark);
+  padding:28px 24px 20px;color:#fff;position:relative;overflow:hidden;
+}
+.eco-card-top::after{
+  content:'';position:absolute;right:-20px;bottom:-30px;
+  width:120px;height:120px;border-radius:50%;
+  background:rgba(255,255,255,.04);
+}
+.eco-card-emoji{font-size:32px;margin-bottom:10px}
+.eco-card-name{font-family:var(--fh);font-size:14px;font-weight:700;margin-bottom:4px}
+.eco-card-url{font-size:10px;opacity:.35;text-transform:uppercase;letter-spacing:.5px}
+.eco-card-body{padding:20px 24px 24px}
+.eco-card-desc{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px}
+.eco-card-tags{display:flex;flex-wrap:wrap;gap:6px}
+.eco-tag{
+  font-size:11px;background:var(--surface2);border:1px solid var(--border);
+  padding:4px 10px;border-radius:20px;color:var(--text);font-weight:500;
+}
+.eco-soon{
+  position:absolute;top:16px;right:16px;
+  font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+  background:rgba(200,150,12,.15);color:var(--gold);
+  padding:3px 8px;border-radius:20px;border:1px solid rgba(200,150,12,.25);
+}
+
+/* ═══ BENEFITS ════════════════════════════════════════════ */
+.benefits-section{background:var(--bg)}
+.benefits-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:16px;margin-top:48px;
+}
+.benefit-card{
+  background:var(--surface);border-radius:var(--rl);
+  padding:28px 26px;border:1px solid var(--border);
+  transition:transform .2s,box-shadow .2s;
+}
+.benefit-card:hover{transform:translateY(-3px);box-shadow:0 16px 40px rgba(0,0,0,.08)}
+.benefit-icon{
+  width:52px;height:52px;border-radius:14px;
+  background:var(--dark);display:flex;align-items:center;justify-content:center;
+  font-size:22px;margin-bottom:18px;
+}
+.benefit-title{font-family:var(--fh);font-size:14px;font-weight:700;margin-bottom:8px}
+.benefit-text{font-size:13px;color:var(--muted);line-height:1.65}
+
+/* ═══ LIMIT EXPLANATION ══════════════════════════════════ */
+.limit-section{background:var(--dark);padding:80px 24px}
+.limit-inner{
+  max-width:900px;margin:0 auto;
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:56px;align-items:center;
+}
+.limit-section .section-title{color:#fff}
+.limit-section .section-tag{background:rgba(126,204,154,.1);color:var(--green)}
+.limit-text{font-size:15px;color:rgba(255,255,255,.5);line-height:1.75;margin-top:16px}
+.limit-text strong{color:#fff}
+.limit-visual{
+  background:rgba(255,255,255,.04);border-radius:var(--rl);
+  padding:28px;border:1px solid rgba(255,255,255,.08);
+}
+.limit-example{margin-bottom:20px}
+.le-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.35);margin-bottom:10px}
+.le-row{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:8px;
+}
+.le-name{font-size:13px;color:rgba(255,255,255,.6)}
+.le-val{font-family:var(--fh);font-size:13px;color:#fff;font-weight:600}
+.le-bar-wrap{height:6px;background:rgba(255,255,255,.08);border-radius:10px;margin-top:6px}
+.le-bar{
+  height:6px;background:linear-gradient(90deg,var(--green),#5aaa7d);
+  border-radius:10px;transition:width 1s ease;
+}
+.le-result{
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(126,204,154,.1);border-radius:10px;
+  padding:12px 16px;margin-top:20px;
+  border:1px solid rgba(126,204,154,.2);
+}
+.le-result-lbl{font-size:12px;color:rgba(255,255,255,.5)}
+.le-result-val{font-family:var(--fh);font-size:18px;font-weight:700;color:var(--green)}
+
+/* ═══ CALCULATOR ═════════════════════════════════════════ */
+.calc-section{background:var(--surface);padding:96px 24px}
+.calc-wrap{
+  max-width:760px;margin:48px auto 0;
+  background:var(--surface2);border-radius:var(--rl);
+  border:1.5px solid var(--border);overflow:hidden;
+}
+.calc-header{
+  background:var(--dark);padding:24px 28px;color:#fff;
+}
+.calc-header-title{font-family:var(--fh);font-size:16px;font-weight:700}
+.calc-header-sub{font-size:12px;opacity:.45;margin-top:4px}
+.calc-body{padding:28px}
+.calc-label{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:8px}
+.calc-input{
+  width:100%;height:52px;border-radius:10px;
+  border:1.5px solid var(--border);background:var(--surface);
+  padding:0 16px;font-size:18px;font-weight:600;
+  outline:none;transition:border-color .15s;
+  font-family:var(--fh);
+}
+.calc-input:focus{border-color:var(--dark)}
+.calc-input-wrap{position:relative;margin-bottom:24px}
+.calc-input-sym{
+  position:absolute;right:16px;top:50%;transform:translateY(-50%);
+  font-family:var(--fh);font-size:18px;color:var(--muted);pointer-events:none;
+}
+.calc-slider{width:100%;accent-color:var(--dark);margin:8px 0 4px;cursor:pointer}
+.calc-slider-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:24px}
+.calc-result-box{
+  background:var(--dark);border-radius:var(--r);padding:22px 24px;
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;
+}
+.crb-item{}
+.crb-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:rgba(255,255,255,.35);margin-bottom:6px}
+.crb-val{font-family:var(--fh);font-size:22px;font-weight:700;color:#fff}
+.crb-val.green{color:var(--green)}
+.crb-val.accent{color:var(--accent)}
+.calc-note{font-size:11.5px;color:var(--muted);margin-top:12px;line-height:1.6}
+
+/* ═══ SCENARIOS ══════════════════════════════════════════ */
+.scenarios-section{background:var(--bg)}
+.scenarios-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:16px;margin-top:48px;
+}
+.scenario-card{
+  background:var(--surface);border-radius:var(--rl);
+  border:1.5px solid var(--border);overflow:hidden;
+  transition:transform .2s,box-shadow .2s;
+}
+.scenario-card:hover{transform:translateY(-3px);box-shadow:0 16px 40px rgba(0,0,0,.09)}
+.sc-head{
+  padding:20px 22px 16px;
+  background:linear-gradient(135deg,var(--dark),var(--dark2));
+  color:#fff;
+}
+.sc-emoji{font-size:28px;margin-bottom:8px}
+.sc-name{font-family:var(--fh);font-size:13px;font-weight:700}
+.sc-body{padding:20px 22px}
+.sc-desc{font-size:13px;color:var(--muted);line-height:1.65;margin-bottom:16px}
+.sc-numbers{display:flex;flex-direction:column;gap:8px}
+.sc-num-row{
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:12.5px;
+}
+.sc-num-lbl{color:var(--muted)}
+.sc-num-val{font-weight:700;color:var(--dark)}
+.sc-num-val.green{color:var(--green2)}
+.sc-divider{height:1px;background:var(--border);margin:6px 0}
+
+/* ═══ FAQ ═════════════════════════════════════════════════ */
+.faq-section{background:var(--surface)}
+.faq-list{max-width:720px;margin:48px auto 0;display:flex;flex-direction:column;gap:2px}
+.faq-item{
+  border-radius:var(--r);overflow:hidden;
+  border:1px solid var(--border);margin-bottom:4px;
+  background:var(--surface);
+}
+.faq-q{
+  width:100%;text-align:left;padding:18px 22px;
+  background:none;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:14px;font-weight:600;color:var(--text);
+  transition:background .15s;
+  gap:12px;
+}
+.faq-q:hover{background:var(--surface2)}
+.faq-q.open{background:var(--dark);color:#fff}
+.faq-icon{
+  width:22px;height:22px;border-radius:50%;
+  background:rgba(0,0,0,.07);display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;font-size:14px;transition:transform .25s,background .15s;
+}
+.faq-q.open .faq-icon{background:rgba(255,255,255,.15);transform:rotate(45deg)}
+.faq-a{
+  display:none;padding:0 22px;font-size:13.5px;color:var(--muted);
+  line-height:1.7;background:var(--surface2);
+  border-top:1px solid var(--border);
+}
+.faq-a.open{display:block;padding:18px 22px}
+
+/* ═══ CTA FINAL ══════════════════════════════════════════ */
+.cta-section{
+  background:var(--dark);padding:96px 24px;
+  text-align:center;position:relative;overflow:hidden;
+}
+.cta-section::before{
+  content:'';position:absolute;top:-100px;left:50%;transform:translateX(-50%);
+  width:800px;height:800px;border-radius:50%;
+  background:radial-gradient(circle,rgba(126,204,154,.08) 0%,transparent 65%);
+  pointer-events:none;
+}
+.cta-section .section-tag{margin:0 auto 16px;display:table}
+.cta-section .section-title{color:#fff;text-align:center;max-width:600px;margin:0 auto 16px}
+.cta-section .section-sub{color:rgba(255,255,255,.45);text-align:center;margin:0 auto 40px}
+.cta-price{
+  display:inline-flex;align-items:baseline;gap:8px;
+  font-family:var(--fh);font-size:56px;font-weight:900;color:#fff;
+  margin-bottom:8px;
+}
+.cta-price span{font-size:20px;color:var(--green);font-weight:400}
+.cta-price-sub{font-size:13px;color:rgba(255,255,255,.3);margin-bottom:32px}
+.cta-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+
+/* ═══ ORDER MODAL ════════════════════════════════════════ */
+.modal-ovl{
+  position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,.6);backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;
+  padding:16px;opacity:0;pointer-events:none;transition:opacity .2s;
+}
+.modal-ovl.open{opacity:1;pointer-events:all}
+.modal-box{
+  background:var(--surface);border-radius:22px;
+  width:100%;max-width:500px;max-height:92vh;overflow-y:auto;
+  transform:translateY(20px) scale(.97);transition:transform .25s cubic-bezier(.34,1.1,.64,1);
+  box-shadow:0 40px 80px rgba(0,0,0,.3);
+}
+.modal-ovl.open .modal-box{transform:translateY(0) scale(1)}
+.modal-hdr{
+  background:var(--dark);padding:24px 28px;color:#fff;
+  border-radius:22px 22px 0 0;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.modal-title{font-family:var(--fh);font-size:16px;font-weight:700}
+.modal-close{
+  background:rgba(255,255,255,.12);border:none;cursor:pointer;
+  width:32px;height:32px;border-radius:50%;
+  color:#fff;font-size:16px;display:flex;align-items:center;justify-content:center;
+  transition:background .15s;
+}
+.modal-close:hover{background:rgba(255,255,255,.2)}
+.modal-body{padding:28px}
+.form-row{margin-bottom:18px}
+.form-label{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:7px;display:block}
+.form-input{
+  width:100%;height:48px;border-radius:10px;
+  border:1.5px solid var(--border);background:var(--surface2);
+  padding:0 14px;font-size:14px;outline:none;
+  transition:border-color .15s;
+}
+.form-input:focus{border-color:var(--dark)}
+.form-submit{
+  width:100%;height:52px;border-radius:12px;
+  background:var(--dark);color:#fff;border:none;
+  font-size:15px;font-weight:600;cursor:pointer;
+  transition:background .15s,transform .1s;
+  margin-top:8px;
+}
+.form-submit:hover{background:var(--dark-h);transform:translateY(-1px)}
+.form-note{font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.6;text-align:center}
+
+/* ═══ STICKY CTA ════════════════════════════════════════ */
+.sticky-cta{
+  position:fixed;bottom:0;left:0;right:0;z-index:90;
+  background:rgba(25,44,30,.97);backdrop-filter:blur(16px);
+  border-top:1px solid rgba(255,255,255,.08);
+  padding:12px 24px;
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  transform:translateY(100%);transition:transform .3s cubic-bezier(.34,1.1,.64,1);
+}
+.sticky-cta.visible{transform:translateY(0)}
+.sticky-cta-text{color:rgba(255,255,255,.6);font-size:13px}
+.sticky-cta-text strong{color:#fff;display:block;font-family:var(--fh);font-size:14px}
+.sticky-btn{
+  height:44px;padding:0 22px;border-radius:10px;
+  background:var(--accent);color:#fff;
+  font-size:13.5px;font-weight:600;border:none;cursor:pointer;
+  transition:background .15s;white-space:nowrap;flex-shrink:0;
+}
+.sticky-btn:hover{background:var(--accent-h)}
+
+/* ═══ FOOTER ════════════════════════════════════════════ */
+footer{
+  background:var(--dark-h);padding:48px 24px 32px;
+  color:rgba(255,255,255,.35);font-size:12px;
+}
+.footer-inner{
+  max-width:1200px;margin:0 auto;
+  display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:20px;
+}
+.footer-logo{font-family:var(--fh);font-size:14px;font-weight:700;color:#fff}
+.footer-logo em{color:var(--green);font-style:normal}
+.footer-links{display:flex;gap:20px;flex-wrap:wrap}
+.footer-link{color:rgba(255,255,255,.3);transition:color .15s;font-size:12px}
+.footer-link:hover{color:rgba(255,255,255,.7)}
+
+/* ═══ TOAST ════════════════════════════════════════════ */
+#toast{
+  position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--dark);color:#fff;
+  padding:11px 22px;border-radius:24px;font-size:13px;font-weight:500;
+  box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:300;
+  opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;
+  white-space:nowrap;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.green{background:var(--green2)}
+
+/* ═══ ANIMATIONS ════════════════════════════════════════ */
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .6s ease,transform .6s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* ═══ RESPONSIVE ════════════════════════════════════════ */
+@media(max-width:900px){
+  .hero-inner{grid-template-columns:1fr;gap:48px;padding:60px 20px 60px}
+  .hero-card-wrap{order:-1}
+  .hero-card{max-width:320px}
+  .hc-badge-1,.hc-badge-2{display:none}
+  .how-steps{grid-template-columns:1fr 1fr}
+  .eco-grid{grid-template-columns:1fr 1fr}
+  .benefits-grid{grid-template-columns:1fr 1fr}
+  .scenarios-grid{grid-template-columns:1fr}
+  .limit-inner{grid-template-columns:1fr;gap:32px}
+  .calc-result-box{grid-template-columns:1fr 1fr}
+  header nav .nav-link{display:none}
+  .mob-nav-cta{
+    display:flex;align-items:center;
+    height:36px;padding:0 14px;border-radius:8px;
+    background:var(--accent);color:#fff;
+    font-size:12px;font-weight:600;border:none;cursor:pointer;
+  }
+}
+@media(max-width:600px){
+  section{padding:64px 16px}
+  .how-steps{grid-template-columns:1fr}
+  .eco-grid{grid-template-columns:1fr}
+  .benefits-grid{grid-template-columns:1fr}
+  .calc-result-box{grid-template-columns:1fr}
+  .hero h1{font-size:28px}
+  .hero-btns{flex-direction:column}
+  .btn-primary,.btn-secondary{width:100%;justify-content:center}
+  .sticky-cta-text{display:none}
+  .sticky-cta{justify-content:center}
+  .cta-price{font-size:40px}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">PLAT<em>FORMA</em> <span>Карта</span></div>
+  <nav>
+    <a class="nav-link" href="#how">Как работает</a>
+    <a class="nav-link" href="#partners">Партнёры</a>
+    <a class="nav-link" href="#calc">Калькулятор</a>
+    <a class="nav-link" href="#faq">FAQ</a>
+    <button class="nav-cta" onclick="openModal()">Получить карту</button>
+    <button class="mob-nav-cta" onclick="openModal()">Получить</button>
+  </nav>
+</header>
+
+<!-- ═══ HERO ═══════════════════════════════════════════ -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <div class="hero-inner">
+    <div class="hero-text">
+      <div class="hero-tag">
+        <span class="hero-tag-dot"></span>
+        Мультикарта выгод
+      </div>
+      <h1>Одна карта —<br>вся <em>стройка</em></h1>
+      <p class="hero-sub">Карта PLATFORMA даёт доступ к выгодам сразу в нескольких строительных бизнесах. Бетон, кровля, гаражи, фасад — один баланс, один инструмент.</p>
+      <div class="hero-btns">
+        <button class="btn-primary" onclick="openModal()">
+          Получить за 15 000 ₽
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+        <a class="btn-secondary" href="#how">
+          Как это работает
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+        </a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="hero-stat-num">3+</div>
+          <div class="hero-stat-lbl">Бизнеса в<br>экосистеме</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-num">3%</div>
+          <div class="hero-stat-lbl">Макс. списание<br>с заказа</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-num">15 000 ₽</div>
+          <div class="hero-stat-lbl">Номинал<br>карты</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card -->
+    <div class="hero-card-wrap">
+      <div class="hero-card-glow"></div>
+      <div style="position:relative">
+        <div class="hc-badge hc-badge-1">
+          <div class="hcb-icon">🏗️</div>
+          <div class="hcb-val">3 бизнеса</div>
+          <div class="hcb-lbl">в экосистеме</div>
+        </div>
+        <div class="hc-badge hc-badge-2">
+          <div class="hcb-icon">✅</div>
+          <div class="hcb-val">−3 000 ₽</div>
+          <div class="hcb-lbl">с заказа 100к</div>
+        </div>
+        <div class="hero-card">
+          <div class="hc-blob1"></div>
+          <div class="hc-blob2"></div>
+          <div class="hc-top">
+            <div class="hc-logo">
+              <div class="hc-logo-main">PLAT<em>FORMA</em></div>
+              <div class="hc-logo-sub">Мультикарта выгод</div>
+            </div>
+            <div class="hc-chip"></div>
+          </div>
+          <div class="hc-number">•••• •••• •••• 7821</div>
+          <div class="hc-bottom">
+            <div>
+              <div class="hc-bal-lbl">Баланс</div>
+              <div class="hc-balance" id="heroBalance">15 000 ₽</div>
+              <div class="hc-balance-sub">доступно к использованию</div>
+            </div>
+            <div class="hc-holder">IVANOV A.V.</div>
+          </div>
+          <!-- NFC icon -->
+          <svg class="hc-nfc" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" opacity=".3"/>
+            <path d="M8 12a4 4 0 008 0" opacity=".5"/>
+            <path d="M5 12a7 7 0 0014 0"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ HOW IT WORKS ═══════════════════════════════════ -->
+<section class="how-section" id="how">
+  <div class="container">
+    <div class="section-tag">Как работает</div>
+    <h2 class="section-title">Просто. Быстро. Выгодно.</h2>
+    <p class="section-sub" style="color:rgba(255,255,255,.45)">Карта работает как предоплаченный инструмент — вы пополняете баланс и используете его в любом из наших бизнесов.</p>
+    <div class="how-steps reveal">
+      <div class="how-step">
+        <div class="how-step-num">01</div>
+        <div class="how-step-icon">💳</div>
+        <div class="how-step-title">Купите карту</div>
+        <div class="how-step-text">Оплатите карту номиналом 15 000 ₽. Получите номер карты и PIN сразу после оплаты.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-step-num">02</div>
+        <div class="how-step-icon">🏗️</div>
+        <div class="how-step-title">Выберите бизнес</div>
+        <div class="how-step-text">Обратитесь в любой из партнёрских бизнесов экосистемы PLATFORMA — бетон, кровля, гаражи и другие.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-step-num">03</div>
+        <div class="how-step-icon">📊</div>
+        <div class="how-step-title">Спишите до 3%</div>
+        <div class="how-step-text">При оплате заказа назовите номер карты — с баланса спишется до 3% от суммы заказа.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-step-num">04</div>
+        <div class="how-step-icon">♾️</div>
+        <div class="how-step-title">Используйте снова</div>
+        <div class="how-step-text">Остаток баланса остаётся на карте и доступен для следующих заказов в любом бизнесе экосистемы.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ PARTNERS ════════════════════════════════════════ -->
+<section class="eco-section" id="partners">
+  <div class="container">
+    <div class="section-tag">Экосистема партнёров</div>
+    <h2 class="section-title">Один баланс —<br>несколько направлений</h2>
+    <p class="section-sub">Карта работает во всех бизнесах группы. Строите дом? Не нужно разбрасывать бюджет — один инструмент закрывает всё.</p>
+    <div class="eco-grid reveal">
+      <div class="eco-card">
+        <div class="eco-card-top">
+          <div class="eco-card-emoji">🧱</div>
+          <div class="eco-card-name">SK Craft Бетон</div>
+          <div class="eco-card-url">sk-craft.ru/beton</div>
+        </div>
+        <div class="eco-card-body">
+          <p class="eco-card-desc">Производство и доставка товарного бетона, строительных растворов и бетонных изделий. Производственные мощности, точные составы, быстрая доставка на объект.</p>
+          <div class="eco-card-tags">
+            <span class="eco-tag">Товарный бетон</span>
+            <span class="eco-tag">Растворы</span>
+            <span class="eco-tag">Доставка</span>
+            <span class="eco-tag">Миксер</span>
+          </div>
+        </div>
+      </div>
+      <div class="eco-card">
+        <div class="eco-card-top">
+          <div class="eco-card-emoji">🏠</div>
+          <div class="eco-card-name">SK Craft</div>
+          <div class="eco-card-url">sk-craft.ru</div>
+        </div>
+        <div class="eco-card-body">
+          <p class="eco-card-desc">Металлоконструкции, гаражи, ворота, навесы и хозяйственные постройки. Производство под ключ, установка, гарантия. Любые нестандартные размеры.</p>
+          <div class="eco-card-tags">
+            <span class="eco-tag">Гаражи</span>
+            <span class="eco-tag">Ворота</span>
+            <span class="eco-tag">Навесы</span>
+            <span class="eco-tag">Металлоконструкции</span>
+          </div>
+        </div>
+      </div>
+      <div class="eco-card">
+        <div class="eco-card-top">
+          <div class="eco-card-emoji">🏗️</div>
+          <div class="eco-card-name">PLATFORMA</div>
+          <div class="eco-card-url">platforma-pro.vercel.app</div>
+        </div>
+        <div class="eco-card-body">
+          <p class="eco-card-desc">Кровельные материалы, фасадные системы и строительные комплектующие. Полный ассортимент от ведущих производителей. Опт и розница.</p>
+          <div class="eco-card-tags">
+            <span class="eco-tag">Кровля</span>
+            <span class="eco-tag">Фасад</span>
+            <span class="eco-tag">Профнастил</span>
+            <span class="eco-tag">Комплектующие</span>
+          </div>
+        </div>
+      </div>
+      <div class="eco-card" style="border-style:dashed;opacity:.7">
+        <div class="eco-card-top" style="background:#2a3d30">
+          <div class="eco-soon">Скоро</div>
+          <div class="eco-card-emoji">🔨</div>
+          <div class="eco-card-name">Новый партнёр</div>
+          <div class="eco-card-url">в разработке</div>
+        </div>
+        <div class="eco-card-body">
+          <p class="eco-card-desc">Экосистема активно расширяется. Новые партнёры добавляются — баланс вашей карты автоматически начнёт работать в новом направлении.</p>
+          <div class="eco-card-tags">
+            <span class="eco-tag">Скоро</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ BENEFITS ════════════════════════════════════════ -->
+<section class="benefits-section">
+  <div class="container">
+    <div class="section-tag">Преимущества</div>
+    <h2 class="section-title">Почему карта PLATFORMA<br>это умный выбор</h2>
+    <div class="benefits-grid reveal">
+      <div class="benefit-card">
+        <div class="benefit-icon">🔄</div>
+        <div class="benefit-title">Один инструмент</div>
+        <p class="benefit-text">Не нужно вести несколько счетов и договорённостей. Один баланс — для всей стройки.</p>
+      </div>
+      <div class="benefit-card">
+        <div class="benefit-icon">💰</div>
+        <div class="benefit-title">Реальная экономия</div>
+        <p class="benefit-text">При каждом заказе вы экономите до 3% от суммы. На крупных стройках это десятки тысяч рублей.</p>
+      </div>
+      <div class="benefit-card">
+        <div class="benefit-icon">⚡</div>
+        <div class="benefit-title">Без бюрократии</div>
+        <p class="benefit-text">Никаких форм, договоров и ожиданий. Назвали номер карты — списание прошло мгновенно.</p>
+      </div>
+      <div class="benefit-card">
+        <div class="benefit-icon">🌐</div>
+        <div class="benefit-title">Растущая экосистема</div>
+        <p class="benefit-text">Новые партнёры подключаются регулярно. Карта становится ценнее сама по себе.</p>
+      </div>
+      <div class="benefit-card">
+        <div class="benefit-icon">🛡️</div>
+        <div class="benefit-title">Честная модель</div>
+        <p class="benefit-text">Лимит 3% защищает всех — и клиента, и бизнес. Никаких скрытых условий, только честные правила.</p>
+      </div>
+      <div class="benefit-card">
+        <div class="benefit-icon">📱</div>
+        <div class="benefit-title">Живой баланс</div>
+        <p class="benefit-text">Баланс обновляется в реальном времени. Всегда знайте, сколько у вас доступно к списанию.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ LIMIT EXPLANATION ══════════════════════════════ -->
+<section class="limit-section" id="limit">
+  <div class="limit-inner">
+    <div>
+      <div class="section-tag">Умная система</div>
+      <h2 class="section-title" style="color:#fff">Лимит 3% —<br>это справедливо</h2>
+      <p class="limit-text">
+        С карты можно списать <strong>не более 3% от суммы заказа</strong>. Это не ограничение — это честная модель.<br><br>
+        Она позволяет партнёрам поддерживать программу без убытков, а вам — получать реальную выгоду <strong>с каждой покупки</strong>, снова и снова.<br><br>
+        Баланс не сгорает. Карта работает пока деньги на счету.
+      </p>
+    </div>
+    <div class="limit-visual">
+      <div class="limit-example">
+        <div class="le-label">Пример расчёта</div>
+        <div class="le-row">
+          <span class="le-name">Сумма заказа</span>
+          <span class="le-val" id="le-order">100 000 ₽</span>
+        </div>
+        <div class="le-bar-wrap"><div class="le-bar" style="width:100%"></div></div>
+        <div class="le-row" style="margin-top:12px">
+          <span class="le-name">Максимальное списание (3%)</span>
+          <span class="le-val" id="le-max">3 000 ₽</span>
+        </div>
+        <div class="le-bar-wrap"><div class="le-bar" style="width:3%;background:linear-gradient(90deg,#C8960C,#e8b020)" id="le-bar2"></div></div>
+      </div>
+      <div class="le-result">
+        <span class="le-result-lbl">Вы платите</span>
+        <span class="le-result-val" id="le-pay">97 000 ₽</span>
+      </div>
+      <div style="margin-top:12px">
+        <input type="range" class="calc-slider" min="10000" max="500000" step="5000" value="100000" id="limitSlider" oninput="updateLimit(this.value)">
+        <div class="calc-slider-labels">
+          <span>10 000 ₽</span>
+          <span>500 000 ₽</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CALCULATOR ════════════════════════════════════ -->
+<section class="calc-section" id="calc">
+  <div class="container" style="text-align:center">
+    <div class="section-tag">Калькулятор</div>
+    <h2 class="section-title">Посчитайте вашу выгоду</h2>
+    <p class="section-sub" style="margin:0 auto">Введите планируемые расходы на строительство — карта окупится быстрее, чем вы думаете.</p>
+  </div>
+  <div class="calc-wrap reveal">
+    <div class="calc-header">
+      <div class="calc-header-title">Калькулятор выгоды карты PLATFORMA</div>
+      <div class="calc-header-sub">Считает экономию на основе реального лимита списания 3%</div>
+    </div>
+    <div class="calc-body">
+      <div class="calc-label">Планируемый бюджет на строительство / закупки</div>
+      <div class="calc-input-wrap">
+        <input type="number" class="calc-input" id="calcInput" value="300000" min="15000" max="10000000" oninput="updateCalc()"/>
+        <div class="calc-input-sym">₽</div>
+      </div>
+      <input type="range" class="calc-slider" min="15000" max="2000000" step="10000" value="300000" id="calcSlider" oninput="syncCalc(this.value)">
+      <div class="calc-slider-labels">
+        <span>15 000 ₽</span>
+        <span>2 000 000 ₽</span>
+      </div>
+      <div class="calc-result-box" id="calcResult">
+        <div class="crb-item">
+          <div class="crb-lbl">Стоимость карты</div>
+          <div class="crb-val accent">15 000 ₽</div>
+        </div>
+        <div class="crb-item">
+          <div class="crb-lbl">Экономия за бюджет</div>
+          <div class="crb-val green" id="cr-save">9 000 ₽</div>
+        </div>
+        <div class="crb-item">
+          <div class="crb-lbl">Итоговая выгода</div>
+          <div class="crb-val" id="cr-net" style="color:#fff">−6 000 ₽</div>
+        </div>
+      </div>
+      <p class="calc-note" id="calcNote">При бюджете 300 000 ₽ вы сэкономите 9 000 ₽. Карта окупится при бюджете ~500 000 ₽.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ SCENARIOS ════════════════════════════════════ -->
+<section class="scenarios-section">
+  <div class="container">
+    <div class="section-tag">Примеры</div>
+    <h2 class="section-title">Реальные сценарии<br>использования</h2>
+    <div class="scenarios-grid reveal">
+      <div class="scenario-card">
+        <div class="sc-head">
+          <div class="sc-emoji">🏡</div>
+          <div class="sc-name">Строительство дома</div>
+        </div>
+        <div class="sc-body">
+          <p class="sc-desc">Фундамент, коробка, крыша — три этапа, три разных бизнеса. Карта покрывает все.</p>
+          <div class="sc-numbers">
+            <div class="sc-num-row"><span class="sc-num-lbl">Бетон (фундамент)</span><span class="sc-num-val">120 000 ₽</span></div>
+            <div class="sc-num-row"><span class="sc-num-lbl">Металлоконструкции</span><span class="sc-num-val">80 000 ₽</span></div>
+            <div class="sc-num-row"><span class="sc-num-lbl">Кровля + материалы</span><span class="sc-num-val">150 000 ₽</span></div>
+            <div class="sc-divider"></div>
+            <div class="sc-num-row"><span class="sc-num-lbl">Итого заказов</span><span class="sc-num-val">350 000 ₽</span></div>
+            <div class="sc-num-row"><span class="sc-num-lbl">Экономия (3%)</span><span class="sc-num-val green">−10 500 ₽</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="scenario-card">
+        <div class="sc-head">
+          <div class="sc-emoji">🚗</div>
+          <div class="sc-name">Гараж + площадка</div>
+        </div>
+        <div class="sc-body">
+          <p class="sc-desc">Бетонная площадка, металлический гараж, ворота. Всё в одной экосистеме.</p>
+          <div class="sc-numbers">
+            <div class="sc-num-row"><span class="sc-num-lbl">Бетон (площадка)</span><span class="sc-num-val">45 000 ₽</span></div>
+            <div class="sc-num-row"><span class="sc-num-lbl">Гараж металл.</span><span class="sc-num-val">130 000 ₽</span></div>
+            <div class="sc-num-row"><span class="sc-num-lbl">Ворота автомат.</span><span class="sc-num-val">55 000 ₽</span></div>
+            <div class="sc-divider"></div>
+            <div class="sc-num-row"><span class="sc-num-lbl">Итого заказов</span><span class="sc-num-val">230 000 ₽</span></div>
+            <div class="sc-num-row"><span class="sc-num-lbl">Экономия (3%)</span><span class="sc-num-val green">−6 900 ₽</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="scenario-card">
+        <div class="sc-head">
+          <div class="sc-emoji">🏢</div>
+          <div class="sc-name">Коммерческий объект</div>
+        </div>
+        <div class="sc-body">
+          <p class="sc-desc">Небольшое производственное здание или склад — серьёзные объёмы, серьёзная экономия.</p>
+          <div class="sc-numbers">
+            <div class="sc-num-row"><span class="sc-num-lbl">Бетон (фундамент)</span><span class="sc-num-val">280 000 ₽</span></div>
+            <div class="sc-num-row"><span class="sc-num-lbl">Металлоконструкции</span><span class="sc-num-val">420 000 ₽</span></div>
+            <div class="sc-num-row"><span class="sc-num-lbl">Кровля + фасад</span><span class="sc-num-val">300 000 ₽</span></div>
+            <div class="sc-divider"></div>
+            <div class="sc-num-row"><span class="sc-num-lbl">Итого заказов</span><span class="sc-num-val">1 000 000 ₽</span></div>
+            <div class="sc-num-row"><span class="sc-num-lbl">Экономия (3%)</span><span class="sc-num-val green">−30 000 ₽</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FAQ ═══════════════════════════════════════════ -->
+<section class="faq-section" id="faq">
+  <div class="container" style="text-align:center">
+    <div class="section-tag">Вопросы</div>
+    <h2 class="section-title">Часто задаваемые вопросы</h2>
+  </div>
+  <div class="faq-list reveal">
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        Что такое карта PLATFORMA?
+        <span class="faq-icon">+</span>
+      </button>
+      <div class="faq-a">
+        Карта PLATFORMA — это предоплаченная мультикарта выгод для строительной экосистемы. Вы пополняете баланс единоразово (номинал 15 000 ₽) и используете его при заказах в нескольких строительных бизнесах группы: бетон, металлоконструкции, кровельные материалы и другие.
+      </div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        Почему нельзя списать весь баланс сразу?
+        <span class="faq-icon">+</span>
+      </button>
+      <div class="faq-a">
+        Ограничение в 3% от суммы заказа — это честная партнёрская модель. Она позволяет всем бизнесам экосистемы поддерживать программу без убытков и обеспечивать постоянную выгоду для клиентов долгосрочно. Баланс не сгорает — вы используете его постепенно.
+      </div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        Карта окупается?
+        <span class="faq-icon">+</span>
+      </button>
+      <div class="faq-a">
+        Да. При совокупном бюджете на закупки от ~500 000 ₽ экономия уже превышает стоимость карты. Если вы строите дом, делаете ремонт или закупаете материалы оптом — карта окупится с первых нескольких заказов.
+      </div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        Сколько стоит карта и что в неё входит?
+        <span class="faq-icon">+</span>
+      </button>
+      <div class="faq-a">
+        Карта стоит 15 000 ₽. На ваш счёт зачисляется 15 000 ₽ баланса, которые вы используете для списания при заказах во всех партнёрских бизнесах экосистемы. Никаких скрытых комиссий или платежей.
+      </div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        Как использовать карту при заказе?
+        <span class="faq-icon">+</span>
+      </button>
+      <div class="faq-a">
+        При оформлении заказа в любом бизнесе экосистемы просто назовите менеджеру номер вашей карты. Система автоматически рассчитает максимально допустимую сумму списания (до 3% от заказа) и спишет её с баланса.
+      </div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        Баланс сгорает?
+        <span class="faq-icon">+</span>
+      </button>
+      <div class="faq-a">
+        Нет. Баланс карты не имеет срока действия. Вы можете использовать его в течение всего строительного процесса — месяц, год или дольше.
+      </div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        Можно ли использовать карту в нескольких бизнесах одновременно?
+        <span class="faq-icon">+</span>
+      </button>
+      <div class="faq-a">
+        Да, именно для этого карта и создана. Единый баланс доступен во всех бизнесах экосистемы. Сегодня вы заказали бетон, завтра — гараж, послезавтра — кровлю. Одна карта — везде.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FINAL CTA ══════════════════════════════════════ -->
+<section class="cta-section">
+  <div class="container">
+    <div class="section-tag">Получить карту</div>
+    <h2 class="section-title">Инвестиция в стройку,<br>которая <em style="color:var(--green);font-style:normal">окупается</em></h2>
+    <p class="section-sub">Одна карта. Вся строительная экосистема. Реальная экономия на каждом заказе.</p>
+    <div class="cta-price">15 000 <span>₽</span></div>
+    <p class="cta-price-sub">Единоразовое пополнение баланса</p>
+    <div class="cta-btns">
+      <button class="btn-primary" onclick="openModal()" style="font-size:16px;height:56px;padding:0 32px">
+        Получить карту сейчас
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+      <a href="tel:+7XXXXXXXXXX" class="btn-secondary" style="height:56px;font-size:16px;padding:0 28px">
+        Позвонить менеджеру
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 8.81 19.79 19.79 0 01.1 2.18 2 2 0 012.07.01h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z"/></svg>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-logo">PLAT<em>FORMA</em> · Карта</div>
+    <div class="footer-links">
+      <a class="footer-link" href="https://platforma-pro.vercel.app">PLATFORMA</a>
+      <a class="footer-link" href="https://sk-craft.ru">SK Craft</a>
+      <a class="footer-link" href="https://sk-craft.ru/beton">SK Craft Бетон</a>
+    </div>
+    <div>© 2025 PLATFORMA. Мультикарта выгод.</div>
+  </div>
+</footer>
+
+<!-- ═══ ORDER MODAL ════════════════════════════════════ -->
+<div class="modal-ovl" id="orderModal">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <div class="modal-title">Получить карту PLATFORMA</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="form-label">Ваше имя</label>
+        <input class="form-input" type="text" id="f-name" placeholder="Иван Петров"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Телефон</label>
+        <input class="form-input" type="tel" id="f-phone" placeholder="+7 (___) ___-__-__"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Email (необязательно)</label>
+        <input class="form-input" type="email" id="f-email" placeholder="your@email.ru"/>
+      </div>
+      <button class="form-submit" onclick="submitOrder()">
+        Оформить заявку на карту
+      </button>
+      <p class="form-note">Менеджер свяжется с вами в течение 15 минут для подтверждения и выставления счёта.</p>
+    </div>
+  </div>
+</div>
+
+<!-- STICKY CTA -->
+<div class="sticky-cta" id="stickyCta">
+  <div class="sticky-cta-text">
+    <strong>Карта PLATFORMA</strong>
+    Одна карта — вся стройка
+  </div>
+  <button class="sticky-btn" onclick="openModal()">Получить за 15 000 ₽</button>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ══ MODAL ══════════════════════════════════════════
+function openModal(){
+  document.getElementById('orderModal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeModal(){
+  document.getElementById('orderModal').classList.remove('open');
+  document.body.style.overflow='';
+}
+document.getElementById('orderModal').addEventListener('click',function(e){
+  if(e.target===this) closeModal();
+});
+
+function submitOrder(){
+  const name=document.getElementById('f-name').value.trim();
+  const phone=document.getElementById('f-phone').value.trim();
+  if(!name){showToast('Введите ваше имя','');return;}
+  if(!phone){showToast('Введите телефон','');return;}
+  closeModal();
+  showToast('✅ Заявка отправлена! Менеджер позвонит вам в ближайшее время.','green');
+}
+
+// ══ TOAST ══════════════════════════════════════════
+function showToast(msg,cls){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='show '+(cls||'');
+  clearTimeout(t._t);
+  t._t=setTimeout(()=>t.className='',3500);
+}
+
+// ══ FAQ ════════════════════════════════════════════
+function toggleFaq(btn){
+  const isOpen=btn.classList.contains('open');
+  document.querySelectorAll('.faq-q.open').forEach(b=>{
+    b.classList.remove('open');
+    b.nextElementSibling.classList.remove('open');
+  });
+  if(!isOpen){
+    btn.classList.add('open');
+    btn.nextElementSibling.classList.add('open');
+  }
+}
+
+// ══ CALCULATOR ════════════════════════════════════
+function fmt(n){return Math.round(n).toLocaleString('ru-RU')}
+function updateCalc(){
+  const v=parseFloat(document.getElementById('calcInput').value)||0;
+  document.getElementById('calcSlider').value=Math.min(v,2000000);
+  recalc(v);
+}
+function syncCalc(v){
+  document.getElementById('calcInput').value=v;
+  recalc(parseFloat(v));
+}
+function recalc(budget){
+  const cardCost=15000;
+  const save=budget*0.03;
+  const net=save-cardCost;
+  document.getElementById('cr-save').textContent=fmt(save)+' ₽';
+  const netEl=document.getElementById('cr-net');
+  if(net>=0){
+    netEl.textContent='+'+fmt(net)+' ₽';
+    netEl.style.color='var(--green)';
+  } else {
+    netEl.textContent=fmt(net)+' ₽';
+    netEl.style.color='rgba(255,255,255,.6)';
+  }
+  const breakeven=Math.ceil(cardCost/0.03);
+  let note='';
+  if(net>=0){
+    note=`При бюджете ${fmt(budget)} ₽ вы сэкономите ${fmt(save)} ₽. Чистая выгода: +${fmt(net)} ₽.`;
+  } else {
+    note=`При бюджете ${fmt(budget)} ₽ вы сэкономите ${fmt(save)} ₽. Карта окупится при бюджете ~${fmt(breakeven)} ₽.`;
+  }
+  document.getElementById('calcNote').textContent=note;
+}
+
+// ══ LIMIT SLIDER ══════════════════════════════════
+function updateLimit(v){
+  const n=parseFloat(v);
+  const max=n*0.03;
+  const pay=n-max;
+  document.getElementById('le-order').textContent=fmt(n)+' ₽';
+  document.getElementById('le-max').textContent=fmt(max)+' ₽';
+  document.getElementById('le-pay').textContent=fmt(pay)+' ₽';
+  // bar stays at 3% visually always
+}
+
+// ══ STICKY CTA ════════════════════════════════════
+const stickyCta=document.getElementById('stickyCta');
+let heroBottom=0;
+function checkScroll(){
+  const hero=document.querySelector('.hero');
+  if(hero) heroBottom=hero.getBoundingClientRect().bottom;
+  if(heroBottom<0){
+    stickyCta.classList.add('visible');
+  } else {
+    stickyCta.classList.remove('visible');
+  }
+}
+window.addEventListener('scroll',checkScroll,{passive:true});
+
+// ══ REVEAL ANIMATIONS ════════════════════════════
+const reveals=document.querySelectorAll('.reveal');
+const observer=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){e.target.classList.add('visible');observer.unobserve(e.target);}
+  });
+},{threshold:.12});
+reveals.forEach(r=>observer.observe(r));
+
+// ══ BALANCE ANIMATION ════════════════════════════
+(function(){
+  const el=document.getElementById('heroBalance');
+  if(!el) return;
+  const end=15000;
+  let cur=0;const dur=1200;const step=16;
+  const inc=end/(dur/step);
+  const t=setInterval(()=>{
+    cur=Math.min(cur+inc,end);
+    el.textContent=Math.round(cur).toLocaleString('ru-RU')+' ₽';
+    if(cur>=end) clearInterval(t);
+  },step);
+})();
+
+// Init calc
+recalc(300000);
+</script>
+</body>
+</html>
