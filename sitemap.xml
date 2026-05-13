@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <sitemap>
-    <loc>https://platforma-pro.vercel.app/sitemap-static.xml</loc>
-    <lastmod>2026-05-13</lastmod>
-  </sitemap>
-  <sitemap>
-    <loc>https://platforma-pro.vercel.app/sitemap-products-1.xml</loc>
-    <lastmod>2026-05-13</lastmod>
-  </sitemap>
-  <sitemap>
-    <loc>https://platforma-pro.vercel.app/sitemap-products-2.xml</loc>
-    <lastmod>2026-05-13</lastmod>
-  </sitemap>
+    <sitemap>
+        <loc>https://platforma-pro.vercel.app/sitemap-static.xml</loc>
+        <lastmod>2026-05-13</lastmod>
+    </sitemap>
+    <sitemap>
+        <loc>https://platforma-pro.vercel.app/sitemap-products-1.xml</loc>
+        <lastmod>2026-05-13</lastmod>
+    </sitemap>
+    <sitemap>
+        <loc>https://platforma-pro.vercel.app/sitemap-products-2.xml</loc>
+        <lastmod>2026-05-13</lastmod>
+    </sitemap>
+    <sitemap>
+        <loc>https://platforma-pro.vercel.app/sitemap-cat-ranilla.xml</loc>
+        <lastmod>2026-05-13</lastmod>
+    </sitemap>
 </sitemapindex>
