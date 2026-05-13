@@ -10,6 +10,8 @@ let cart = JSON.parse(localStorage.getItem('platforma_cart') || '[]');
 let modalProd = null, modalVar = 0, modalImg = 0, modalQty = 1;
 let subMethod = 'telegram';
 let loyaltyCard = JSON.parse(localStorage.getItem('platforma_loyalty') || 'null');
+let currentView = 'groups'; // 'groups', 'categories', 'products'
+let activeGroup = null;
 
 const DISCOUNT_RATE = 0.93;
 const CASHBACK_RATE = 0.005;
@@ -41,12 +43,30 @@ async function loadCatalog() {
   const params = new URLSearchParams(location.search);
   const pId = params.get('product');
   const catSlug = params.get('cat');
-  if (catSlug) {
+  const groupSlug = params.get('group');
+  
+  if (groupSlug) {
+    activeGroup = catalog.groups[groupSlug];
+    if (activeGroup) {
+      currentView = 'categories';
+      renderCategories();
+    }
+  } else if (catSlug) {
     const c = catalog.categories.find(x => x.slug === catSlug);
-    if (c) activeCat = c;
+    if (c) {
+      activeCat = c;
+      currentView = 'products';
+    }
   }
-  if (!activeCat) activeCat = catalog.categories[0];
-  renderProducts();
+  
+  if (currentView === 'groups') {
+    renderGroups();
+  } else if (currentView === 'categories') {
+    renderCategories();
+  } else {
+    renderProducts();
+  }
+  
   if (pId) { const p = findProd(pId); if (p) openProd(pId); }
   updateBadge();
 }
@@ -64,13 +84,294 @@ function showSkeleton() {
   document.getElementById('content').innerHTML = '<div class="pgrid">' + cards + '</div>';
 }
 
-// ══ SIDEBAR ════════════════════════════════════════════════════════════════
+// ══ RENDER GROUPS ═══════════════════════════════════════════════════════
+function renderGroups() {
+  const content = document.getElementById('content');
+  if (!catalog || !catalog.groups) {
+    content.innerHTML = '<div class="loading">Загрузка каталога...</div>';
+    return;
+  }
+
+  const totalCats = Object.keys(catalog.groups).length +
+    catalog.categories.filter(cat =>
+      !Object.values(catalog.groups).some(g => g.categories.includes(cat.slug))
+    ).length;
+
+  const heroHtml =
+    '<div class="hero">' +
+      '<div>' +
+        '<h1>Каталог кровельных материалов</h1>' +
+        '<p>Выберите категорию для просмотра товаров</p>' +
+      '</div>' +
+      '<div class="hero-right">' +
+        '<div class="hero-stat"><span>' + catalog.meta.total_products + '</span><small>товаров</small></div>' +
+        '<div class="hero-badge"><div class="hero-badge-val">−7%</div><div class="hero-badge-lbl">скидка</div></div>' +
+      '</div>' +
+    '</div>';
+
+  const GROUP_ICONS = {
+    izolyatsiya: '🧱', 'fasadnye-materialy': '🏠', vodostoki: '🌧️',
+    krovelnyye: '🏗️', cherepitsa: '🔶', metallocherepitsa: '🔩',
+    bitumnaya: '⬛', gibkaya: '🔷', profnastil: '📐', default: '📦'
+  };
+
+  const groupCards = Object.entries(catalog.groups).map(([slug, group]) => {
+    const totalProducts = group.categories.reduce((sum, catSlug) => {
+      const cat = catalog.categories.find(c => c.slug === catSlug);
+      return sum + (cat ? cat.products.length : 0);
+    }, 0);
+
+    const previewImgs = [];
+    for (const catSlug of group.categories) {
+      const cat = catalog.categories.find(c => c.slug === catSlug);
+      if (!cat) continue;
+      for (const p of cat.products) {
+        const img = p.variants?.[0]?.images?.[0];
+        if (img && !previewImgs.includes(img)) { previewImgs.push(img); break; }
+      }
+      if (previewImgs.length >= 4) break;
+    }
+
+    const thumbHtml = previewImgs.length >= 2
+      ? '<div class="gcard-thumbs gcard-thumbs-grid">' +
+          previewImgs.slice(0, 4).map(src =>
+            '<img src="' + src + '" loading="lazy">'
+          ).join('') +
+        '</div>'
+      : previewImgs.length === 1
+        ? '<div class="gcard-thumb"><img src="' + previewImgs[0] + '" loading="lazy"></div>'
+        : '<div class="gcard-icon">' + (GROUP_ICONS[slug] || GROUP_ICONS.default) + '</div>';
+
+    return (
+      '<div class="gcard gcard-group" onclick="openGroup(\'' + slug + '\')">' +
+        thumbHtml +
+        '<div class="gcard-info">' +
+          '<div class="gcard-title">' + group.name + '</div>' +
+          '<div class="gcard-sub">' + group.categories.length + ' подкатегорий</div>' +
+        '</div>' +
+        '<div class="gcard-arrow">›</div>' +
+      '</div>'
+    );
+  });
+
+  const standaloneCategories = catalog.categories.filter(cat =>
+    !Object.values(catalog.groups).some(g => g.categories.includes(cat.slug))
+  );
+
+  const standaloneCards = standaloneCategories.map(cat => {
+    const previewImgs = [];
+    for (const p of cat.products) {
+      const img = p.variants?.[0]?.images?.[0];
+      if (img && !previewImgs.includes(img)) previewImgs.push(img);
+      if (previewImgs.length >= 3) break;
+    }
+
+    const thumbHtml = previewImgs.length > 1
+      ? '<div class="gcard-thumbs">' +
+          previewImgs.map(src =>
+            '<img src="' + src + '" loading="lazy">'
+          ).join('') +
+        '</div>'
+      : previewImgs.length === 1
+        ? '<div class="gcard-thumb"><img src="' + previewImgs[0] + '" loading="lazy"></div>'
+        : '<div class="gcard-icon">📦</div>';
+
+    const prices = cat.products.flatMap(p => p.variants.map(v => v.price)).filter(x => x > 0);
+    const minPrice = prices.length ? Math.min(...prices) : 0;
+    const priceHint = minPrice > 0 ? ' · <span class="gcard-price">от ' + fmt(Math.round(minPrice * 0.93)) + ' ₽</span>' : '';
+
+    return (
+      '<div class="gcard" onclick="openCategory(\'' + cat.slug + '\')">' +
+        thumbHtml +
+        '<div class="gcard-info">' +
+          '<div class="gcard-title">' + cat.name + '</div>' +
+          '<div class="gcard-sub">' + (priceHint ? priceHint.replace(" · ","") : '&nbsp;') + '</div>' +
+        '</div>' +
+        '<div class="gcard-arrow">›</div>' +
+      '</div>'
+    );
+  });
+
+  content.innerHTML = heroHtml + '<div class="ggrid">' + [...groupCards, ...standaloneCards].join('') + '</div>';
+}
+
+function openGroup(slug) {
+  activeGroup = catalog.groups[slug];
+  if (!activeGroup) return;
+  
+  currentView = 'categories';
+  setURLParam('group', slug);
+  removeURLParam('cat');
+  renderCategories();
+}
+
+function openCategory(slug) {
+  const cat = catalog.categories.find(c => c.slug === slug);
+  if (!cat) return;
+
+  const parentGroupEntry = Object.entries(catalog.groups || {}).find(([, g]) => g.categories.includes(slug));
+  if (parentGroupEntry) {
+    activeGroup = catalog.groups[parentGroupEntry[0]];
+    setURLParam("group", parentGroupEntry[0]);
+    expandSidebarGroup(parentGroupEntry[0]);
+  }
+
+  activeCat = cat;
+  currentView = "products";
+  setURLParam("cat", slug);
+  highlightCat();
+  renderProducts();
+}
+
+function goHome() {
+  activeCat = null;
+  activeGroup = null;
+  currentView = 'groups';
+  srchQ = '';
+  filters = { minPrice: 0, maxPrice: 999999, color: '', sort: 'default' };
+  const u = new URL(location);
+  u.searchParams.delete('cat');
+  u.searchParams.delete('group');
+  u.searchParams.delete('product');
+  history.replaceState({}, '', u);
+  highlightCat();
+  renderGroups();
+}
+
+function goToGroup(slug) {
+  activeGroup = catalog.groups[slug];
+  activeCat = null;
+  currentView = 'categories';
+  setURLParam('group', slug);
+  removeURLParam('cat');
+  removeURLParam('product');
+  highlightCat();
+  renderCategories();
+}
+
+// ══ RENDER CATEGORIES ══════════════════════════════════════════════════════
+function renderCategories() {
+  const content = document.getElementById('content');
+  if (!activeGroup) {
+    content.innerHTML = '<div class="loading">Категория не найдена</div>';
+    return;
+  }
+
+  const breadcrumb =
+    '<div class="breadcrumb">' +
+      '<span class="bc-item bc-link" onclick="goHome()">Каталог</span>' +
+      '<span class="bc-sep">›</span>' +
+      '<span class="bc-item bc-cur">' + activeGroup.name + '</span>' +
+    '</div>';
+
+  const heroHtml =
+    '<div class="hero">' +
+      '<div>' +
+        '<h1>' + activeGroup.name + '</h1>' +
+        '<p>Выберите подкатегорию для просмотра товаров</p>' +
+      '</div>' +
+      '<div class="hero-right">' +
+        '<div class="hero-stat"><span>' + activeGroup.categories.length + '</span><small>подкатегорий</small></div>' +
+        '<div class="hero-badge"><div class="hero-badge-val">−7%</div><div class="hero-badge-lbl">скидка</div></div>' +
+      '</div>' +
+    '</div>';
+
+  const categoryCards = activeGroup.categories.map(catSlug => {
+    const cat = catalog.categories.find(c => c.slug === catSlug);
+    if (!cat) return '';
+
+    const previewImgs = [];
+    for (const p of cat.products) {
+      const img = p.variants?.[0]?.images?.[0];
+      if (img && !previewImgs.includes(img)) previewImgs.push(img);
+      if (previewImgs.length >= 3) break;
+    }
+
+    const thumbHtml = previewImgs.length > 1
+      ? '<div class="gcard-thumbs">' +
+          previewImgs.map(src =>
+            '<img src="' + src + '" loading="lazy">'
+          ).join('') +
+        '</div>'
+      : previewImgs.length === 1
+        ? '<div class="gcard-thumb"><img src="' + previewImgs[0] + '" loading="lazy"></div>'
+        : '<div class="gcard-icon">📦</div>';
+
+    const prices = cat.products.flatMap(p => p.variants.map(v => v.price)).filter(x => x > 0);
+    const minPrice = prices.length ? Math.min(...prices) : 0;
+    const priceHint = minPrice > 0 ? ' · <span class="gcard-price">от ' + fmt(Math.round(minPrice * 0.93)) + ' ₽</span>' : '';
+
+    return (
+      '<div class="gcard" onclick="openCategory(\'' + cat.slug + '\')">' +
+        thumbHtml +
+        '<div class="gcard-info">' +
+          '<div class="gcard-title">' + cat.name + '</div>' +
+          '<div class="gcard-sub">' + (priceHint ? priceHint.replace(" · ","") : '&nbsp;') + '</div>' +
+        '</div>' +
+        '<div class="gcard-arrow">›</div>' +
+      '</div>'
+    );
+  }).filter(Boolean);
+
+  content.innerHTML = breadcrumb + heroHtml + '<div class="ggrid">' + categoryCards.join('') + '</div>';
+}
+
 function buildSidebar() {
   ['catlist', 'mob-catlist'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     el.innerHTML = '';
-    catalog.categories.forEach(cat => {
+
+    // Render groups first
+    if (catalog.groups && Object.keys(catalog.groups).length > 0) {
+      Object.entries(catalog.groups).forEach(([slug, group]) => {
+        const groupEl = document.createElement('div');
+        groupEl.className = 'cgroup';
+        groupEl.dataset.groupSlug = slug;
+
+        const totalProducts = group.categories.reduce((sum, catSlug) => {
+          const cat = catalog.categories.find(c => c.slug === catSlug);
+          return sum + (cat ? cat.products.length : 0);
+        }, 0);
+
+        groupEl.innerHTML =
+          '<div class="cgroup-hdr" onclick="toggleSidebarGroup(\'' + slug + '\')">' +
+            '<span class="cgroup-name">' + group.name + '</span>' +
+            '<span class="cgroup-meta">' + group.categories.length + ' подкатегорий</span>' +
+            '<span class="cgroup-arrow" id="cga-' + id + '-' + slug + '">›</span>' +
+          '</div>' +
+          '<div class="cgroup-items" id="cgi-' + id + '-' + slug + '" style="display:none">' +
+            group.categories.map(catSlug => {
+              const cat = catalog.categories.find(c => c.slug === catSlug);
+              if (!cat) return '';
+              return '<div class="citem citem-sub" data-slug="' + cat.slug + '">' +
+                '<span>' + cat.name + '</span>' +
+                '<span class="ccnt">' + cat.products.length + '</span>' +
+              '</div>';
+            }).filter(Boolean).join('') +
+          '</div>';
+
+        // Add click handlers for sub-items
+        el.appendChild(groupEl);
+        groupEl.querySelectorAll('.citem-sub').forEach(item => {
+          item.onclick = () => {
+            const cat = catalog.categories.find(c => c.slug === item.dataset.slug);
+            if (cat) { selectCat(cat); if (id === 'mob-catlist') closeMobDrawer(); }
+          };
+        });
+
+        // Auto-expand active group
+        if (activeGroup && Object.keys(catalog.groups).find(k => catalog.groups[k] === activeGroup) === slug) {
+          expandSidebarGroup(slug);
+        }
+      });
+    }
+
+    // Standalone categories (not in any group)
+    const standalones = catalog.categories.filter(cat =>
+      !Object.values(catalog.groups || {}).some(g => g.categories.includes(cat.slug))
+    );
+    standalones.forEach(cat => {
       const d = document.createElement('div');
       d.className = 'citem';
       d.dataset.slug = cat.slug;
@@ -80,6 +381,27 @@ function buildSidebar() {
     });
   });
   highlightCat();
+}
+
+function toggleSidebarGroup(slug) {
+  ['catlist', 'mob-catlist'].forEach(id => {
+    const items = document.getElementById('cgi-' + id + '-' + slug);
+    const arrow = document.getElementById('cga-' + id + '-' + slug);
+    if (!items) return;
+    const isOpen = items.style.display !== 'none';
+    items.style.display = isOpen ? 'none' : 'block';
+    if (arrow) arrow.style.transform = isOpen ? '' : 'rotate(90deg)';
+  });
+}
+
+function expandSidebarGroup(slug) {
+  ['catlist', 'mob-catlist'].forEach(id => {
+    const items = document.getElementById('cgi-' + id + '-' + slug);
+    const arrow = document.getElementById('cga-' + id + '-' + slug);
+    if (!items) return;
+    items.style.display = 'block';
+    if (arrow) arrow.style.transform = 'rotate(90deg)';
+  });
 }
 
 function highlightCat() {
@@ -92,6 +414,13 @@ function selectCat(cat) {
   filters = { minPrice: 0, maxPrice: 999999, color: '', sort: 'default' };
   document.getElementById('srch').value = '';
   filterOpen = false;
+  // Find + expand parent group
+  const parentEntry = Object.entries(catalog.groups || {}).find(([, g]) => g.categories.includes(cat.slug));
+  if (parentEntry) {
+    activeGroup = catalog.groups[parentEntry[0]];
+    setURLParam('group', parentEntry[0]);
+    expandSidebarGroup(parentEntry[0]);
+  }
   highlightCat();
   setURLParam('cat', cat.slug);
   removeURLParam('product');
@@ -148,6 +477,14 @@ function renderProducts() {
   const maxP = Math.max(...(activeCat.products || []).map(p => Math.round(p.variants[0].price * DISCOUNT_RATE) || 0), 0);
   const allColors = [...new Set((activeCat.products || []).flatMap(p => p.variants.map(v => v.color || v.sku_name || '')).filter(Boolean))];
 
+  // Build breadcrumb
+  const groupEntry = Object.entries(catalog.groups || {}).find(([, g]) => g.categories.includes(activeCat.slug));
+  let breadcrumb = '<div class="breadcrumb"><span class="bc-item bc-link" onclick="goHome()">Каталог</span>';
+  if (groupEntry) {
+    breadcrumb += '<span class="bc-sep">›</span><span class="bc-item bc-link" onclick="goToGroup(\'' + groupEntry[0] + '\')">' + groupEntry[1].name + '</span>';
+  }
+  breadcrumb += '<span class="bc-sep">›</span><span class="bc-item bc-cur">' + activeCat.name + '</span></div>';
+
   const heroHtml =
     '<div class="hero">' +
       '<div>' +
@@ -203,7 +540,7 @@ function renderProducts() {
     '</div>';
 
   if (!prods.length) {
-    content.innerHTML = heroHtml + calcHtml + fbarHtml + '<div class="loading">Ничего не найдено</div>';
+    content.innerHTML = breadcrumb + heroHtml + calcHtml + fbarHtml + '<div class="loading">Ничего не найдено</div>';
     return;
   }
 
@@ -271,7 +608,7 @@ function renderProducts() {
   if (cardElements.length > 4) cardElements.splice(4, 0, loyaltyBanner);
   if (cardElements.length > 10) cardElements.splice(10, 0, tgBanner);
 
-  content.innerHTML = heroHtml + calcHtml + fbarHtml + '<div class="pgrid">' + cardElements.join('') + '</div>';
+  content.innerHTML = breadcrumb + heroHtml + calcHtml + fbarHtml + '<div class="pgrid">' + cardElements.join('') + '</div>';
 }
 
 // ══ CALCULATOR ══════════════════════════════════════════════════════════════
@@ -643,7 +980,7 @@ function renderCart() {
   el.innerHTML = cart.map((item, i) =>
     '<div class="citem-card">' +
       (item.img
-        ? '<img class="cimg" src="' + item.img + '" alt="" onerror="this.style.display=\'none\'">'
+        ? '<img class="cimg" src="' + item.img + '" alt="">'
         : '<div class="cimg" style="display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--surface2)">📦</div>') +
       '<div class="cii">' +
         '<div class="cititle">' + item.title + '</div>' +
