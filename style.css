@@ -581,6 +581,7 @@ input, select, textarea { font-family: var(--fb); }
   background: var(--surface); border-radius: 20px;
   width: 100%; max-width: 900px; max-height: 92vh;
   display: grid; grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
   overflow: hidden; position: relative;
   animation: mIn .25s cubic-bezier(.34,1.1,.64,1);
 }
@@ -590,6 +591,7 @@ input, select, textarea { font-family: var(--fb); }
 .mgal {
   background: var(--surface2); position: relative;
   display: flex; flex-direction: column; overflow: hidden;
+  min-height: 0; height: 100%;
 }
 .mgal-track {
   flex: 1; display: flex;
@@ -600,9 +602,9 @@ input, select, textarea { font-family: var(--fb); }
 .mgal-slide {
   flex-shrink: 0; width: 100%; scroll-snap-align: start;
   display: flex; align-items: center; justify-content: center;
-  background: var(--surface2); min-height: 340px;
+  background: var(--surface2); height: 100%;
 }
-.mgal-slide img { width: 100%; height: 100%; object-fit: cover; }
+.mgal-slide img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; }
 .mgal-slide .ph-big { font-size: 64px; color: var(--border); }
 
 .mgal-dots {
@@ -643,7 +645,7 @@ input, select, textarea { font-family: var(--fb); }
 /* Информация о товаре */
 .minfo {
   padding: 28px 28px 24px; display: flex; flex-direction: column; gap: 14px;
-  overflow-y: auto; height: 100%; max-height: 100%;
+  overflow-y: auto; min-height: 0;
 }
 .minfo::-webkit-scrollbar       { width: 4px; }
 .minfo::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
@@ -978,7 +980,7 @@ input, select, textarea { font-family: var(--fb); }
   .modal        { grid-template-columns: 1fr; max-height: 95vh; border-radius: 16px 16px 0 0; align-self: flex-end; width: 100%; }
   .mgal         { max-height: 260px; }
   .mgal-slide   { min-height: 220px; }
-  .minfo        { max-height: none; padding: 20px; }
+  .minfo        { max-height: calc(95vh - 260px); overflow-y: auto; }
 
   .comodal      { border-radius: 16px 16px 0 0; padding: 22px 18px; align-self: flex-end; }
   .loyalty-modal { border-radius: 16px 16px 0 0; align-self: flex-end; max-height: 95vh; }
