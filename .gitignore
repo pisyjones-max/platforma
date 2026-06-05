@@ -1,37 +1,22 @@
-# Dependencies
-node_modules/
+# Python
 __pycache__/
 *.pyc
-venv/
-pyvenv.cfg
-
-# Environment files
+.venv*/
+*.egg-info/
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
 
-# IDE files
+# Данные парсера (тяжёлые)
+parsed_categories/
+public/
+
+# PyCharm
 .idea/
-.vscode/
-*.swp
-*.swo
+*.iml
 
-# OS files
+# Mac
 .DS_Store
-Thumbs.db
 
-# Logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Build outputs
-dist/
-build/
-
-# Temporary files
-*.tmp
-*.temp
+# Excel выгрузки
+*.xlsx
+config.js
+config.js

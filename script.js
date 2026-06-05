@@ -1365,8 +1365,8 @@ async function submitOrder() {
   };
 
   // ── Отправка в Telegram ──────────────────────────────────────────────
-  const TG_TOKEN  = '7867250243:AAEP5Rk5vwjIDh846Iaq4JKO8IzY5B1a4y4';
-  const TG_CHAT   = '1383747941';
+  const TG_TOKEN  = window.TG_TOKEN;
+  const TG_CHAT   = window.TG_CHAT_ID;
 
   const itemsList = order.items.map(i =>
     `  • ${i.title} × ${i.qty} — ${i.price > 0 ? fmt(i.price * i.qty) + ' ₽' : 'по запросу'}`
