@@ -5,10 +5,12 @@
 // ══ STATE ══════════════════════════════════════════════════════════════════
 let catalog = null, activeCat = null, srchQ = '', calcOpen = false;
 let filterOpen = false;
-let filters = { minPrice: 0, maxPrice: 999999, color: '', sort: 'default' };
+let filters = { minPrice: 0, maxPrice: 999999, color: '', brand: '', sort: 'default' };
 let cart = JSON.parse(localStorage.getItem('platforma_cart') || '[]');
 let modalProd = null, modalVar = 0, modalImg = 0, modalQty = 1;
 let subMethod = 'telegram';
+let deliveryMethod = 'pvz'; // 'pvz' | 'courier'
+let selectedPVZ = null;     // { id, address }
 let loyaltyCard = JSON.parse(localStorage.getItem('platforma_loyalty') || 'null');
 let currentView = 'groups'; // 'groups', 'categories', 'products'
 let activeGroup = null;
@@ -450,6 +452,14 @@ function getFilteredProducts() {
     const q = filters.color.toLowerCase();
     prods = prods.filter(p => p.variants.some(v => (v.color || v.sku_name || '').toLowerCase().includes(q)));
   }
+  if (filters.brand) {
+    const q = filters.brand.toLowerCase();
+    prods = prods.filter(p => {
+      const featBrand = (p.features?.['Производитель'] || '').toLowerCase();
+      const titleBrand = p.title.toLowerCase();
+      return featBrand.includes(q) || titleBrand.includes(q);
+    });
+  }
   if (filters.sort === 'price_asc') prods.sort((a, b) => a.variants[0].price - b.variants[0].price);
   if (filters.sort === 'price_desc') prods.sort((a, b) => b.variants[0].price - a.variants[0].price);
   if (filters.sort === 'name') prods.sort((a, b) => a.title.localeCompare(b.title, 'ru'));
@@ -461,12 +471,14 @@ function closeFilter() { filterOpen = false; renderProducts(); }
 function applySort(v) { filters.sort = v; renderProducts(); }
 function applyColor(v) { filters.color = v; renderProducts(); }
 function clearColor() { filters.color = ''; renderProducts(); }
+function applyBrand(v) { filters.brand = v; renderProducts(); }
+function clearBrand() { filters.brand = ''; renderProducts(); }
 function updatePriceFilter(v, max) {
   filters.maxPrice = parseInt(v);
   const el = document.getElementById('price-range-val');
   if (el) el.textContent = parseInt(v) >= max ? 'Любая' : fmt(v) + ' ₽';
 }
-function resetFilters() { filters = { minPrice: 0, maxPrice: 999999, color: '', sort: 'default' }; filterOpen = false; renderProducts(); }
+function resetFilters() { filters = { minPrice: 0, maxPrice: 999999, color: '', brand: '', sort: 'default' }; filterOpen = false; renderProducts(); }
 
 // ══ RENDER PRODUCTS ════════════════════════════════════════════════════════
 function renderProducts() {
@@ -476,6 +488,16 @@ function renderProducts() {
   const total = activeCat.products.length;
   const maxP = Math.max(...(activeCat.products || []).map(p => Math.round(p.variants[0].price * DISCOUNT_RATE) || 0), 0);
   const allColors = [...new Set((activeCat.products || []).flatMap(p => p.variants.map(v => v.color || v.sku_name || '')).filter(Boolean))];
+
+  // Собираем бренды из features['Производитель'] и из названий товаров
+  const KNOWN_BRANDS = ['Технониколь', 'Docke', 'Ranilla', 'Rockwool', 'ISOVER', 'Grand Line', 'Металл Профиль', 'Изоспан', 'Ондулин'];
+  const allBrands = [...new Set(
+    (activeCat.products || []).map(p => {
+      if (p.features?.['Производитель']) return p.features['Производитель'];
+      const found = KNOWN_BRANDS.find(b => p.title.toLowerCase().includes(b.toLowerCase()));
+      return found || null;
+    }).filter(Boolean)
+  )].sort((a, b) => a.localeCompare(b, 'ru'));
 
   // Build breadcrumb
   const groupEntry = Object.entries(catalog.groups || {}).find(([, g]) => g.categories.includes(activeCat.slug));
@@ -514,6 +536,7 @@ function renderProducts() {
   const rangeMax = maxP || 10000;
   const rangeVal = Math.min(filters.maxPrice, rangeMax);
 
+  // Чипы активных брендов в fbar
   const fbarHtml =
     '<div class="fbar">' +
       '<button class="fchip ' + (filterOpen ? 'active' : '') + '" onclick="toggleFilter()">' +
@@ -521,6 +544,7 @@ function renderProducts() {
       '</button>' +
       '<select class="sort-sel" onchange="applySort(this.value)">' + sortOpts + '</select>' +
       (filters.color ? '<button class="fchip active" onclick="clearColor()">Цвет: ' + filters.color + ' ✕</button>' : '') +
+      (filters.brand ? '<button class="fchip active" onclick="applyBrand(\'\')">🏷 ' + filters.brand + ' ✕</button>' : '') +
       '<span class="rcnt">Найдено: ' + prods.length + '</span>' +
     '</div>' +
     '<div class="fpanel ' + (filterOpen ? 'open' : '') + '">' +
@@ -539,8 +563,26 @@ function renderProducts() {
       '</div>' +
     '</div>';
 
+  // Бренд-бар — горизонтальный ряд кнопок над карточками
+  const brandBarHtml = allBrands.length
+    ? '<div class="brand-bar">' +
+        '<button class="brand-btn' + (!filters.brand ? ' active' : '') + '" onclick="applyBrand(\'\')">Все</button>' +
+        allBrands.map(b => {
+          const cnt = (activeCat.products || []).filter(p => {
+            const fb = (p.features?.['Производитель'] || '').toLowerCase();
+            const tb = p.title.toLowerCase();
+            return fb.includes(b.toLowerCase()) || tb.includes(b.toLowerCase());
+          }).length;
+          return '<button class="brand-btn' + (filters.brand === b ? ' active' : '') + '" onclick="applyBrand(\'' + b + '\')">' +
+            b + ' <span class="brand-count">' + cnt + '</span>' +
+          '</button>';
+        }).join('') +
+      '</div>'
+    : '';
+
+
   if (!prods.length) {
-    content.innerHTML = breadcrumb + heroHtml + calcHtml + fbarHtml + '<div class="loading">Ничего не найдено</div>';
+    content.innerHTML = breadcrumb + heroHtml + calcHtml + fbarHtml + brandBarHtml + '<div class="loading">Ничего не найдено</div>';
     return;
   }
 
@@ -587,12 +629,22 @@ function renderProducts() {
       : '<span class="pp" style="font-size:12px;color:var(--muted)">По запросу</span>';
     const vl = p.variants.length > 1
       ? '<div class="pvars"><div class="pvars-dot"></div>' + p.variants.length + ' вариантов</div>' : '';
+
+    // Бренд под названием
+    const prodBrand = p.features?.['Производитель']
+      || KNOWN_BRANDS.find(b => p.title.toLowerCase().includes(b.toLowerCase()))
+      || null;
+    const brandTag = prodBrand
+      ? '<div class="pcard-brand" onclick="event.stopPropagation();applyBrand(\'' + prodBrand + '\')" title="Фильтровать по бренду">' + prodBrand + '</div>'
+      : '';
+
     return (
       '<div class="pcard" onclick="openProd(\'' + p.id + '\')">' +
         (v.price > 0 ? '<div class="pcard-discount-tag">−7%</div>' : '') +
         '<div class="pthumb">' + img + '</div>' +
         '<div class="pinfo">' +
           '<div class="ptitle">' + p.title + '</div>' +
+          brandTag +
           '<div class="psku">Арт. ' + p.sku_base + '</div>' +
           vl +
           '<div class="pprow">' + pr + '</div>' +
@@ -608,7 +660,7 @@ function renderProducts() {
   if (cardElements.length > 4) cardElements.splice(4, 0, loyaltyBanner);
   if (cardElements.length > 10) cardElements.splice(10, 0, tgBanner);
 
-  content.innerHTML = breadcrumb + heroHtml + calcHtml + fbarHtml + '<div class="pgrid">' + cardElements.join('') + '</div>';
+  content.innerHTML = breadcrumb + heroHtml + calcHtml + fbarHtml + brandBarHtml + '<div class="pgrid">' + cardElements.join('') + '</div>';
 }
 
 // ══ CALCULATOR ══════════════════════════════════════════════════════════════
@@ -669,8 +721,14 @@ setTimeout(calcUpdate, 600);
 
 // ══ PRODUCT MODAL ══════════════════════════════════════════════════════════
 function findProd(id) {
+  // Ищем точное совпадение по id (полный slug)
   for (const cat of catalog.categories) {
     const p = cat.products.find(x => x.id === id);
+    if (p) return p;
+  }
+  // Fallback: ищем по последнему сегменту слага (для коротких URL из браузера)
+  for (const cat of catalog.categories) {
+    const p = cat.products.find(x => x.id && x.id.endsWith('--' + id) || x.id === id);
     if (p) return p;
   }
 }
@@ -741,7 +799,9 @@ function openProd(id) {
   renderModal();
   document.getElementById('movl').style.display = 'flex';
   document.body.style.overflow = 'hidden';
-  setURLParam('product', id);
+  // В URL пишем только последний сегмент слага (красиво и без mk4s.ru)
+  const urlSlug = (modalProd.id || id).split('--').pop();
+  setURLParam('product', urlSlug);
 }
 
 function closeMod() {
@@ -798,7 +858,8 @@ function renderModal() {
     : '';
 
   const packNote = v.pack_quantity > 1 ? '<span style="font-size:11px;color:var(--muted)">× ' + v.pack_quantity + ' м²/уп</span>' : '';
-  const shareUrl = location.origin + location.pathname + '?cat=' + (activeCat?.slug || '') + '&product=' + p.id;
+  const productSlug = (p.id || '').split('--').pop() || p.id;
+  const shareUrl = location.origin + location.pathname + '?cat=' + (activeCat?.slug || '') + '&product=' + encodeURIComponent(productSlug);
 
   document.getElementById('minfo').innerHTML =
     '<div class="mtitle">' + p.title + '</div>' +
@@ -1077,12 +1138,14 @@ function rmFromCart(i) { cart.splice(i, 1); saveCart(); updateBadge(); renderCar
 function openCheckout() {
   if (!cart.length) return;
   closeCart();
+  checkoutFormState = {};
   renderCheckout();
   document.getElementById('covl2').style.display = 'flex';
   document.body.style.overflow = 'hidden';
 }
 
 function closeCheckout() {
+  checkoutFormState = {};
   document.getElementById('covl2').style.display = 'none';
   document.body.style.overflow = '';
 }
@@ -1114,7 +1177,33 @@ function renderCheckout() {
     ? '<div class="finp-wrap"><label>Номер карты PLATFORMA</label><input class="finp" value="' + loyaltyCard.number + '" readonly style="opacity:.6"/></div>'
     : '';
 
-  const smActive = m => subMethod === m ? ' active' : '';
+  const dmActive = m => deliveryMethod === m ? ' active' : '';
+
+  // Блок доставки: виджет ПВЗ или поле адреса курьера
+  const pvzConfirm = selectedPVZ
+    ? '<div style="margin-top:8px;padding:10px 14px;background:rgba(74,173,100,.12);border:1px solid var(--success);border-radius:8px;font-size:13px;color:var(--success)" id="pvz-confirm">✅ ' + selectedPVZ.address + '</div>'
+    : '<div style="margin-top:8px;padding:10px 14px;background:var(--panel);border-radius:8px;font-size:12px;color:var(--muted)" id="pvz-confirm">Выберите точку на карте и нажмите «Продолжить»</div>';
+
+  const deliveryBlock =
+    '<div class="finp-wrap">' +
+      '<label>Способ доставки *</label>' +
+      '<div class="sub-methods" style="margin-top:8px">' +
+        '<div class="sub-method' + dmActive('pvz') + '" onclick="setDeliveryMethod(\'pvz\')">' +
+          '<div class="sm-icon">📦</div>Пункт выдачи' +
+        '</div>' +
+        '<div class="sub-method' + dmActive('courier') + '" onclick="setDeliveryMethod(\'courier\')">' +
+          '<div class="sm-icon">🚚</div>Курьер' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    (deliveryMethod === 'pvz'
+      ? '<div class="finp-wrap">' +
+          '<label>Пункт выдачи (Яндекс Доставка) *</label>' +
+          pvzConfirm +
+          '<div id="delivery-widget" style="margin-top:10px;border-radius:10px;overflow:hidden;min-height:400px"></div>' +
+        '</div>'
+      : '<div class="finp-wrap"><label>Адрес доставки курьером *</label><input class="finp" id="co-addr" placeholder="Город, улица, дом, квартира"/></div>'
+    );
 
   document.getElementById('coinner').innerHTML =
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px">' +
@@ -1127,36 +1216,130 @@ function renderCheckout() {
         '<div class="finp-wrap"><label>Телефон *</label><input class="finp" id="co-phone" placeholder="+7 (___) ___-__-__"/></div>' +
       '</div>' +
       '<div class="finp-wrap"><label>Email</label><input class="finp" id="co-email" placeholder="email@example.com"/></div>' +
-      '<div class="finp-wrap"><label>Адрес доставки *</label><input class="finp" id="co-addr" placeholder="Город, улица, дом"/></div>' +
+      deliveryBlock +
       lcField +
       '<div class="finp-wrap"><label>Комментарий</label><textarea class="ftarea" id="co-comment" placeholder="Пожелания, удобное время доставки..."></textarea></div>' +
       '<div class="co-items-preview">' + itemsHtml + lcRow +
         '<div class="co-total-line"><span>К оплате</span><span>' + fmt(finalTotal) + ' ₽</span></div>' +
         cbNote +
       '</div>' +
-      '<div><div class="vlabel" style="margin-bottom:8px">Способ связи</div>' +
-        '<div class="sub-methods">' +
-          '<div class="sub-method' + smActive('telegram') + '" onclick="setSubMethod(\'telegram\')"><div class="sm-icon">✈️</div>Telegram</div>' +
-          '<div class="sub-method' + smActive('email') + '" onclick="setSubMethod(\'email\')"><div class="sm-icon">📧</div>Email</div>' +
-          '<div class="sub-method' + smActive('phone') + '" onclick="setSubMethod(\'phone\')"><div class="sm-icon">📞</div>Звонок</div>' +
-        '</div>' +
+      '<div><div class="vlabel" style="margin-bottom:8px">Дополнительно</div>' +
+        '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">' +
+          '<input type="checkbox" id="co-callback" style="width:16px;height:16px;accent-color:var(--dark);cursor:pointer">' +
+          'Перезвоните мне для подтверждения заказа' +
+        '</label>' +
       '</div>' +
       '<button class="co-submit" onclick="submitOrder()">Отправить заказ</button>' +
     '</div>';
+
+  // Запускаем виджет если выбран ПВЗ
+  if (deliveryMethod === 'pvz') {
+    initYaWidget();
+  }
 }
 
-function setSubMethod(m) { subMethod = m; renderCheckout(); }
+
+function initYaWidget() {
+  requestAnimationFrame(() => {
+    const container = document.getElementById('delivery-widget');
+    if (!container) return;
+
+    function startWidget() {
+      // Если виджет уже был создан в этом контейнере — не дублируем
+      if (container.dataset.yaWidgetInit === '1') return;
+      container.dataset.yaWidgetInit = '1';
+
+      window.YaDelivery.createWidget({
+        containerId: 'delivery-widget',
+        params: {
+          city: 'Москва',
+          size: { height: '420px', width: '100%' },
+          // source_platform_station: 'ВАШ_GUID_СТАНЦИИ', // раскомментировать после регистрации в ЛК Яндекс Доставки
+          // physical_dims_weight_gross: 15000,            // вес отправления в граммах — раскомментировать
+          delivery_price: 'от 200',
+          delivery_term: 'от 2 дней',
+          show_select_button: true,
+          filter: {
+            type: ['pickup_point', 'terminal'],
+            payment_methods: ['already_paid', 'card_on_receipt'],
+            payment_methods_filter: 'or'
+          }
+        }
+      });
+    }
+
+    window.YaDelivery ? startWidget()
+      : document.addEventListener('YaNddWidgetLoad', startWidget, { once: true });
+
+    // Обработка выбора точки
+    document.addEventListener('YaNddWidgetPointSelected', function onPVZSelect(e) {
+      // Отписываемся если виджет уже не в DOM (перерисовка чекаута)
+      if (!document.getElementById('delivery-widget')) {
+        document.removeEventListener('YaNddWidgetPointSelected', onPVZSelect);
+        return;
+      }
+      const d = e.detail;
+      selectedPVZ = {
+        id: d.id,
+        address: d.address?.full_address || [d.address?.locality, d.address?.street, d.address?.house].filter(Boolean).join(', ')
+      };
+      // Обновляем строку подтверждения без полной перерисовки
+      const confirm = document.getElementById('pvz-confirm');
+      if (confirm) {
+        confirm.style.background = 'rgba(74,173,100,.12)';
+        confirm.style.border = '1px solid var(--success)';
+        confirm.style.color = 'var(--success)';
+        confirm.textContent = '✅ ' + selectedPVZ.address;
+      }
+    });
+  });
+}
+
+// Сохранённые значения полей чекаута между перерисовками
+let checkoutFormState = {};
+
+function saveCheckoutState() {
+  ['co-name','co-phone','co-email','co-addr','co-comment'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) checkoutFormState[id] = el.value;
+  });
+}
+
+function restoreCheckoutState() {
+  ['co-name','co-phone','co-email','co-addr','co-comment'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && checkoutFormState[id] != null) el.value = checkoutFormState[id];
+  });
+}
+
+function setSubMethod(m) { saveCheckoutState(); subMethod = m; renderCheckout(); restoreCheckoutState(); }
+function setDeliveryMethod(m) { saveCheckoutState(); deliveryMethod = m; selectedPVZ = null; renderCheckout(); restoreCheckoutState(); if (deliveryMethod === 'pvz') initYaWidget(); }
 
 async function submitOrder() {
   const name = document.getElementById('co-name')?.value.trim();
   const phone = document.getElementById('co-phone')?.value.trim();
-  const addr = document.getElementById('co-addr')?.value.trim();
   let valid = true;
-  ['co-name', 'co-phone', 'co-addr'].forEach(id => {
+
+  // Валидация имени и телефона
+  ['co-name', 'co-phone'].forEach(id => {
     const el = document.getElementById(id);
     if (el && !el.value.trim()) { el.classList.add('error'); valid = false; }
     else el?.classList.remove('error');
   });
+
+  // Валидация доставки
+  if (deliveryMethod === 'pvz' && !selectedPVZ) {
+    toast('Выберите пункт выдачи на карте', 'error');
+    valid = false;
+  }
+  if (deliveryMethod === 'courier') {
+    const addrEl = document.getElementById('co-addr');
+    if (!addrEl || !addrEl.value.trim()) {
+      addrEl?.classList.add('error');
+      valid = false;
+    } else addrEl.classList.remove('error');
+  }
+
   if (!valid) { toast('Заполните обязательные поля', 'error'); return; }
 
   const total = cart.reduce((s, c) => s + (c.price * c.qty), 0);
@@ -1166,19 +1349,64 @@ async function submitOrder() {
   const order = {
     name, phone,
     email: document.getElementById('co-email')?.value.trim() || '',
-    address: addr,
+    delivery_method: deliveryMethod,
+    address: deliveryMethod === 'pvz'
+      ? selectedPVZ.address
+      : (document.getElementById('co-addr')?.value.trim() || ''),
+    pvz_id: selectedPVZ?.id || null,
     comment: document.getElementById('co-comment')?.value.trim() || '',
+    callback_requested: document.getElementById('co-callback')?.checked || false,
     loyalty_card: loyaltyCard?.number || null,
     items: cart, total, cashback,
     loyalty_deducted: lcBal,
     final_total: Math.max(0, total - lcBal),
-    method: subMethod,
+    notify: ['email', 'telegram'], // всегда шлём на оба канала
     created_at: new Date().toISOString()
   };
 
+  // ── Отправка в Telegram ──────────────────────────────────────────────
+  const TG_TOKEN  = '7867250243:AAEP5Rk5vwjIDh846Iaq4JKO8IzY5B1a4y4';
+  const TG_CHAT   = '1383747941';
+
+  const itemsList = order.items.map(i =>
+    `  • ${i.title} × ${i.qty} — ${i.price > 0 ? fmt(i.price * i.qty) + ' ₽' : 'по запросу'}`
+  ).join('\n');
+
+  const tgText = [
+    '🛒 *Новый заказ PLATFORMA*',
+    '',
+    `👤 *Имя:* ${order.name}`,
+    `📞 *Телефон:* ${order.phone}`,
+    order.email ? `📧 *Email:* ${order.email}` : null,
+    '',
+    `🚚 *Доставка:* ${order.delivery_method === 'pvz' ? 'Пункт выдачи' : 'Курьер'}`,
+    `📍 *Адрес:* ${order.address || '—'}`,
+    order.pvz_id ? `🔖 *ID ПВЗ:* ${order.pvz_id}` : null,
+    '',
+    '*Состав заказа:*',
+    itemsList,
+    '',
+    `💰 *Итого:* ${fmt(order.final_total)} ₽`,
+    order.loyalty_deducted > 0 ? `💳 *Списано с карты:* ${fmt(order.loyalty_deducted)} ₽` : null,
+    order.comment ? `💬 *Комментарий:* ${order.comment}` : null,
+    order.callback_requested ? '📲 *Просит перезвонить*' : null,
+    '',
+    `🕐 ${new Date().toLocaleString('ru-RU')}`,
+  ].filter(Boolean).join('\n');
+
   try {
-    await fetch('/api/order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(order) });
-  } catch (_) {}
+    await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: TG_CHAT,
+        text: tgText,
+        parse_mode: 'Markdown'
+      })
+    });
+  } catch (e) {
+    console.error('Telegram send error:', e);
+  }
 
   if (loyaltyCard) {
     loyaltyCard.balance = Math.max(0, loyaltyCard.balance - lcBal) + cashback;
@@ -1197,14 +1425,25 @@ async function submitOrder() {
     ? '<br><br><strong style="color:var(--success)">+' + fmt(cashback) + ' ₽ кэшбэк зачислен на карту PLATFORMA</strong>'
     : '';
 
+  const deliveryInfo = deliveryMethod === 'pvz'
+    ? '<br>Доставка в ПВЗ: ' + selectedPVZ.address
+    : '';
+
+  const callbackNote = order.callback_requested
+    ? '<br>Мы перезвоним вам для подтверждения.'
+    : '<br>Мы свяжемся с вами в ближайшее время.';
+
   document.getElementById('coinner').innerHTML =
     '<div class="co-success">' +
       '<div class="tick">✅</div>' +
       '<h3>Заказ принят!</h3>' +
-      '<p>Спасибо, <strong>' + name + '</strong>!<br>Свяжемся с вами по номеру ' + phone + '.' + cbMsg + '</p>' +
+      '<p>Спасибо, <strong>' + name + '</strong>!' + callbackNote + deliveryInfo + cbMsg + '</p>' +
       '<button class="co-submit" style="margin-top:22px" onclick="closeCheckout()">Закрыть</button>' +
     '</div>';
 
+  // Сброс состояния доставки
+  selectedPVZ = null;
+  deliveryMethod = 'pvz';
   cart = []; saveCart(); updateBadge();
 }
 
