@@ -21,3 +21,5 @@ public/
 config.js
 config.js
 all/
+old/
+parser_with_json.py
