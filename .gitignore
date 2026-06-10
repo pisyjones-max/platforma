@@ -23,3 +23,7 @@ config.js
 all/
 old/
 parser_with_json.py
+vk_ads.html
+vk_catalog.xml
+vk_catalog_fixed.xml
+vk_upload.py
