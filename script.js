@@ -15,7 +15,11 @@ let loyaltyCard = JSON.parse(localStorage.getItem('platforma_loyalty') || 'null'
 let currentView = 'groups'; // 'groups', 'categories', 'products'
 let activeGroup = null;
 
-const DISCOUNT_RATE = 0.93;
+// Цена = прайс × 0.99 (на 1% дешевле источника) — базовая цена магазина
+// Акционная цена со скидкой −7% от базовой = прайс × 0.99 × 0.93 ≈ 0.9207
+const PRICE_BASE   = 0.99;   // базовая цена относительно прайса (−1%)
+const DISCOUNT_RATE = 0.93;  // скидочный множитель (−7% от базовой)
+const SALE_RATE     = PRICE_BASE * DISCOUNT_RATE; // итоговый множитель ~0.9207
 const CASHBACK_RATE = 0.005;
 
 // ══ TOAST ══════════════════════════════════════════════════════════════════
@@ -32,6 +36,199 @@ function toast(msg, type = 'default', duration = 2600) {
 }
 
 // ══ LOAD ════════════════════════════════════════════════════════════════════
+function injectDynamicStyles() {
+  if (document.getElementById('platforma-dynamic-styles')) return;
+  const s = document.createElement('style');
+  s.id = 'platforma-dynamic-styles';
+  s.textContent = `
+    /* ── Modal buttons — основной стиль в style.css ── */
+    /* Здесь только то чего нет в style.css */
+    /* ── Modal-embedded calc ──────────────────── */
+    #modal-calc-wrap .calc-panel {
+      margin: 14px 0 0; border-radius: 12px;
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 18px; animation: fadeIn .2s ease;
+    }
+    #modal-calc-wrap .calc-panel h3 { font-size: 14px; margin-bottom: 14px; }
+    /* ── Calc panel (main page) ───────────────── */
+    .calc-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 22px 18px;
+      margin-bottom: 18px;
+      animation: fadeIn .25s ease;
+    }
+    .calc-panel h3 {
+      font-family: var(--fh); font-size: 15px; font-weight: 600;
+      display: flex; align-items: center; gap: 8px; margin-bottom: 16px;
+    }
+    .calc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 10px; margin-bottom: 16px;
+    }
+    .calc-inp-wrap label {
+      display: block; font-size: 11px; color: var(--muted);
+      margin-bottom: 4px; font-weight: 500;
+    }
+    .calc-inp {
+      width: 100%; padding: 8px 10px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--bg);
+      color: var(--text); font-size: 14px; box-sizing: border-box;
+    }
+    .calc-inp:focus { outline: none; border-color: var(--accent); }
+    .calc-result {
+      display: flex; align-items: center; gap: 14px;
+      flex-wrap: wrap; padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .cres-text { font-size: 14px; color: var(--muted); flex: 1; min-width: 180px; }
+    .cres-text strong { color: var(--text); font-weight: 600; }
+    .calc-addbtn {
+      padding: 9px 20px; border-radius: 9px;
+      background: var(--dark); color: #fff;
+      border: none; font-size: 13px; font-family: var(--fb);
+      cursor: pointer; white-space: nowrap; transition: .18s;
+    }
+    .calc-addbtn:hover { opacity: .86; }
+
+    /* ── Price pack block ──────────────────────── */
+    .mprice-pack {
+      font-size: 12px; color: var(--muted); margin-top: 4px;
+      padding: 6px 10px; background: var(--surface);
+      border-radius: 8px; border: 1px solid var(--border);
+      display: inline-block;
+    }
+    .mprice-pack strong { color: var(--text); font-weight: 600; }
+    .mprice-unit { font-size: 13px; color: var(--muted); margin: 0 4px; }
+
+    /* ══ МОБИЛЬНЫЙ АДАПТИВ — перекрывает любой старый style.css ══ */
+
+    /* Категории: 2 колонки на мобайле */
+    @media (max-width: 768px) {
+      .ggrid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 12px !important;
+        margin-top: 14px !important;
+      }
+      /* Картинки карточки категории — макс высота */
+      .gcard-thumb, .gcard-thumbs, .gcard-thumbs-grid, .gcard-icon {
+        max-height: 150px !important;
+        overflow: hidden !important;
+      }
+      /* 3 фото → показываем 2 */
+      .gcard-thumbs img:nth-child(3) { display: none !important; }
+    }
+
+    @media (max-width: 480px) {
+      .ggrid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+      }
+      .gcard-title  { font-size: 12px !important; }
+      .gcard-sub    { font-size: 11px !important; }
+      .gcard-info   { padding: 8px 10px 4px !important; }
+      .gcard-arrow  { padding: 0 10px 8px !important; }
+      .gcard-thumb, .gcard-thumbs, .gcard-thumbs-grid, .gcard-icon {
+        max-height: 120px !important;
+      }
+      /* 1 фото на маленьких */
+      .gcard-thumbs img:nth-child(2),
+      .gcard-thumbs img:nth-child(3) { display: none !important; }
+      .gcard-thumbs img:nth-child(1) { flex: 1 !important; }
+
+      /* Товарная сетка — 2 колонки */
+      .pgrid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+      }
+    }
+
+    /* ══ МОДАЛ НА САФАРИ / МОБАЙЛ — специальный фикс ══ */
+    @media (max-width: 768px) {
+      /* Safari не понимает height:90vh на grid — переводим в flex */
+      .modal {
+        display: -webkit-flex !important;
+        display: flex !important;
+        -webkit-flex-direction: column !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        height: 92dvh !important;           /* dvh — учитывает адресную строку */
+        max-height: 92dvh !important;
+        border-radius: 18px 18px 0 0 !important;
+        overflow: hidden !important;
+        position: relative !important;
+        /* Safari fix: убираем grid */
+        grid-template-columns: unset !important;
+        grid-template-rows: unset !important;
+      }
+      /* Галерея — фиксированная высота */
+      .mgal {
+        -webkit-flex: 0 0 auto !important;
+        flex: 0 0 auto !important;
+        height: 250px !important;
+        min-height: 250px !important;
+        max-height: 250px !important;
+        width: 100% !important;
+        overflow: hidden !important;
+      }
+      .mgal-track {
+        height: 185px !important;
+        -webkit-flex: 0 0 185px !important;
+        flex: 0 0 185px !important;
+        overflow-x: scroll !important;
+        -webkit-overflow-scrolling: touch !important;
+      }
+      .mgal-slide {
+        height: 185px !important;
+        min-height: 185px !important;
+        -webkit-flex-shrink: 0 !important;
+        flex-shrink: 0 !important;
+      }
+      .mgal-slide img {
+        max-height: 185px !important;
+        width: auto !important;
+        max-width: 100% !important;
+        object-fit: contain !important;
+      }
+      .mgal-dots { bottom: 62px !important; }
+      /* Миниатюры */
+      .mthbs {
+        -webkit-flex: 0 0 65px !important;
+        flex: 0 0 65px !important;
+        min-height: 65px !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+      }
+      /* Инфо — занимает оставшееся место, скроллится */
+      .minfo {
+        -webkit-flex: 1 1 0 !important;
+        flex: 1 1 0 !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        max-height: none !important;
+        padding: 16px 18px 32px !important;
+      }
+      /* Оверлей — снизу */
+      .moverlay {
+        -webkit-align-items: flex-end !important;
+        align-items: flex-end !important;
+        padding: 0 !important;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .modal { height: 95dvh !important; max-height: 95dvh !important; }
+      .mgal  { height: 220px !important; min-height: 220px !important; max-height: 220px !important; }
+      .mgal-track { height: 155px !important; flex: 0 0 155px !important; }
+      .mgal-slide { height: 155px !important; min-height: 155px !important; }
+      .mgal-slide img { max-height: 155px !important; }
+    }
+  `;
+  document.head.appendChild(s);
+}
+
 async function loadCatalog() {
   showSkeleton();
   try {
@@ -46,7 +243,7 @@ async function loadCatalog() {
   const pId = params.get('product');
   const catSlug = params.get('cat');
   const groupSlug = params.get('group');
-  
+
   if (groupSlug) {
     activeGroup = catalog.groups[groupSlug];
     if (activeGroup) {
@@ -60,7 +257,7 @@ async function loadCatalog() {
       currentView = 'products';
     }
   }
-  
+
   if (currentView === 'groups') {
     renderGroups();
   } else if (currentView === 'categories') {
@@ -68,9 +265,10 @@ async function loadCatalog() {
   } else {
     renderProducts();
   }
-  
+
   if (pId) { const p = findProd(pId); if (p) openProd(pId); }
   updateBadge();
+  setTimeout(checkAbandonedCart, 1500);
 }
 
 function showSkeleton() {
@@ -180,7 +378,7 @@ function renderGroups() {
 
     const prices = cat.products.flatMap(p => p.variants.map(v => v.price)).filter(x => x > 0);
     const minPrice = prices.length ? Math.min(...prices) : 0;
-    const priceHint = minPrice > 0 ? ' · <span class="gcard-price">от ' + fmt(Math.round(minPrice * 0.93)) + ' ₽</span>' : '';
+    const priceHint = minPrice > 0 ? ' · <span class="gcard-price">от ' + fmt(Math.round(minPrice * SALE_RATE)) + ' ₽</span>' : '';
 
     return (
       '<div class="gcard" onclick="openCategory(\'' + cat.slug + '\')">' +
@@ -200,7 +398,7 @@ function renderGroups() {
 function openGroup(slug) {
   activeGroup = catalog.groups[slug];
   if (!activeGroup) return;
-  
+
   currentView = 'categories';
   setURLParam('group', slug);
   removeURLParam('cat');
@@ -301,7 +499,7 @@ function renderCategories() {
 
     const prices = cat.products.flatMap(p => p.variants.map(v => v.price)).filter(x => x > 0);
     const minPrice = prices.length ? Math.min(...prices) : 0;
-    const priceHint = minPrice > 0 ? ' · <span class="gcard-price">от ' + fmt(Math.round(minPrice * 0.93)) + ' ₽</span>' : '';
+    const priceHint = minPrice > 0 ? ' · <span class="gcard-price">от ' + fmt(Math.round(minPrice * SALE_RATE)) + ' ₽</span>' : '';
 
     return (
       '<div class="gcard" onclick="openCategory(\'' + cat.slug + '\')">' +
@@ -437,6 +635,12 @@ function removeURLParam(k) { const u = new URL(location); u.searchParams.delete(
 function getFilteredProducts() {
   if (!activeCat) return [];
   let prods = [...(activeCat.products || [])];
+  // Фасет-фильтры (из умных фасетов)
+  if (window._activeFacets) {
+    for (const [key, val] of Object.entries(window._activeFacets)) {
+      prods = prods.filter(p => p.features?.[key] === val);
+    }
+  }
   if (srchQ) {
     const q = srchQ.toLowerCase();
     prods = prods.filter(p =>
@@ -445,7 +649,7 @@ function getFilteredProducts() {
       JSON.stringify(p.features || {}).toLowerCase().includes(q));
   }
   prods = prods.filter(p => {
-    const fp = Math.round(p.variants[0].price * DISCOUNT_RATE);
+    const fp = Math.round(p.variants[0].price * SALE_RATE);
     return fp >= filters.minPrice && (filters.maxPrice >= 99999 || fp <= filters.maxPrice);
   });
   if (filters.color) {
@@ -486,7 +690,7 @@ function renderProducts() {
   if (!activeCat) { content.innerHTML = '<div class="loading">Выберите категорию</div>'; return; }
   const prods = getFilteredProducts();
   const total = activeCat.products.length;
-  const maxP = Math.max(...(activeCat.products || []).map(p => Math.round(p.variants[0].price * DISCOUNT_RATE) || 0), 0);
+  const maxP = Math.max(...(activeCat.products || []).map(p => Math.round(p.variants[0].price * SALE_RATE) || 0), 0);
   const allColors = [...new Set((activeCat.products || []).flatMap(p => p.variants.map(v => v.color || v.sku_name || '')).filter(Boolean))];
 
   // Собираем бренды из features['Производитель'] и из названий товаров
@@ -623,7 +827,7 @@ function renderProducts() {
     const img = (v.images && v.images[0])
       ? '<img src="' + v.images[0] + '" alt="' + p.title + '" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=ph>📦</div>\'">'
       : '<div class="ph">📦</div>';
-    const fp = Math.round(v.price * DISCOUNT_RATE);
+    const fp = Math.round(v.price * SALE_RATE);
     const pr = v.price > 0
       ? '<span class="pp">' + fmt(fp) + ' ₽</span><span class="pop">' + fmt(v.price) + ' ₽</span>'
       : '<span class="pp" style="font-size:12px;color:var(--muted)">По запросу</span>';
@@ -661,6 +865,31 @@ function renderProducts() {
   if (cardElements.length > 10) cardElements.splice(10, 0, tgBanner);
 
   content.innerHTML = breadcrumb + heroHtml + calcHtml + fbarHtml + brandBarHtml + '<div class="pgrid">' + cardElements.join('') + '</div>';
+
+  // Фасеты — вставляем перед pgrid
+  requestAnimationFrame(() => {
+    const pgrid = content.querySelector('.pgrid');
+    if (pgrid) {
+      const existFacets = document.getElementById('facets-bar');
+      if (existFacets) existFacets.remove();
+      const facetsHtml = buildFacetsHtml();
+      if (facetsHtml) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = facetsHtml;
+        content.insertBefore(tmp.firstChild, pgrid);
+      }
+    }
+    // История просмотров — внизу страницы
+    const existHist = document.getElementById('history-block');
+    if (existHist) existHist.remove();
+    const histHtml = buildHistoryHtml();
+    if (histHtml) {
+      const wrap = document.createElement('div');
+      wrap.id = 'history-block';
+      wrap.innerHTML = histHtml;
+      content.appendChild(wrap);
+    }
+  });
 }
 
 // ══ CALCULATOR ══════════════════════════════════════════════════════════════
@@ -670,18 +899,112 @@ function toggleCalc() {
   if (calcOpen) document.querySelector('.calc-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
+// ══ УМНЫЙ КАЛЬКУЛЯТОР ════════════════════════════════════════════════════════
+// Определяем тип расчёта по слагу категории или названию товара
+function getCalcType() {
+  const slug = activeCat?.slug || '';
+  const name = (activeCat?.name || '').toLowerCase();
+  const title = (window._calcModalProd?.title || '').toLowerCase();
+  const combined = slug + ' ' + name + ' ' + title;
+
+  if (/vodostok|водосто|gutter|жёлоб|желоб|труб/.test(combined))  return 'gutter';
+  if (/uteplitel|изоляц|утеплит|rockwool|isover|izolyats/.test(combined)) return 'insulation';
+  if (/samorez|саморез|крепёж|fastener|krepezh/.test(combined))   return 'screws';
+  if (/sayding|сайдинг|fasad|фасад|panel|панел/.test(combined))   return 'siding';
+  // По умолчанию — кровля (листовые материалы)
+  return 'roofing';
+}
+
+// Единица товара из варианта: м², м, шт, уп
+function getUnitFromVariant(v) {
+  const name = (v?.sku_name || v?.name || '').toLowerCase();
+  const pack = v?.pack_quantity;
+  if (name.includes('м²') || name.includes('m2')) return 'm2';
+  if (name.includes(' м') && !name.includes('мм')) return 'm';
+  if (pack && pack > 1) return 'pack';
+  return 'pcs';
+}
+
 function renderCalcPanel() {
+  const type = getCalcType();
+  const prod = window._calcModalProd || modalProd || activeCat?.products[0];
+  const variant = prod?.variants?.[window._calcModalVar || 0] || prod?.variants?.[0];
+  const packQty = variant?.pack_quantity || 1;
+
+  const titles = {
+    roofing:    '🏗️ Калькулятор кровли',
+    gutter:     '🌧️ Калькулятор водостока',
+    insulation: '🧱 Калькулятор утеплителя',
+    screws:     '🔩 Калькулятор саморезов',
+    siding:     '🏠 Калькулятор фасада / сайдинга',
+  };
+
+  let fields = '';
+  let resultHint = '';
+
+  if (type === 'roofing') {
+    fields =
+      '<div class="calc-inp-wrap"><label>Длина ската, м</label>' +
+        '<input class="calc-inp" type="number" id="c-len" value="10" min="1" step="0.1" oninput="calcUpdate()"/></div>' +
+      '<div class="calc-inp-wrap"><label>Ширина ската, м</label>' +
+        '<input class="calc-inp" type="number" id="c-wid" value="6" min="1" step="0.1" oninput="calcUpdate()"/></div>' +
+      '<div class="calc-inp-wrap"><label>Количество скатов</label>' +
+        '<input class="calc-inp" type="number" id="c-slopes" value="2" min="1" max="8" oninput="calcUpdate()"/></div>' +
+      '<div class="calc-inp-wrap"><label>Запас, %</label>' +
+        '<input class="calc-inp" type="number" id="c-margin" value="10" min="0" max="30" oninput="calcUpdate()"/></div>';
+    resultHint = 'Площадь: <strong id="c-area">—</strong> &nbsp;·&nbsp; Нужно: <strong id="c-sheets">—</strong>';
+
+  } else if (type === 'gutter') {
+    fields =
+      '<div class="calc-inp-wrap"><label>Периметр кровли, м</label>' +
+        '<input class="calc-inp" type="number" id="c-perim" value="40" min="1" step="0.5" oninput="calcUpdate()"/></div>' +
+      '<div class="calc-inp-wrap"><label>Длина элемента, м</label>' +
+        '<input class="calc-inp" type="number" id="c-gutter-len" value="3" min="1" step="0.5" oninput="calcUpdate()"/></div>' +
+      '<div class="calc-inp-wrap"><label>Запас, %</label>' +
+        '<input class="calc-inp" type="number" id="c-margin" value="5" min="0" max="20" oninput="calcUpdate()"/></div>';
+    resultHint = 'Погонных метров: <strong id="c-area">—</strong> &nbsp;·&nbsp; Элементов: <strong id="c-sheets">—</strong>';
+
+  } else if (type === 'insulation') {
+    fields =
+      '<div class="calc-inp-wrap"><label>Площадь, м²</label>' +
+        '<input class="calc-inp" type="number" id="c-area-inp" value="60" min="1" step="1" oninput="calcUpdate()"/></div>' +
+      '<div class="calc-inp-wrap"><label>Слоёв утеплителя</label>' +
+        '<input class="calc-inp" type="number" id="c-layers" value="1" min="1" max="4" oninput="calcUpdate()"/></div>' +
+      '<div class="calc-inp-wrap"><label>Плит в упаковке</label>' +
+        '<input class="calc-inp" type="number" id="c-pack" value="' + packQty + '" min="1" oninput="calcUpdate()"/></div>' +
+      '<div class="calc-inp-wrap"><label>Запас, %</label>' +
+        '<input class="calc-inp" type="number" id="c-margin" value="5" min="0" max="20" oninput="calcUpdate()"/></div>';
+    resultHint = 'Площадь: <strong id="c-area">—</strong> &nbsp;·&nbsp; Упаковок: <strong id="c-sheets">—</strong>';
+
+  } else if (type === 'screws') {
+    fields =
+      '<div class="calc-inp-wrap"><label>Площадь кровли / фасада, м²</label>' +
+        '<input class="calc-inp" type="number" id="c-area-inp" value="80" min="1" step="1" oninput="calcUpdate()"/></div>' +
+      '<div class="calc-inp-wrap"><label>Расход, шт/м²</label>' +
+        '<input class="calc-inp" type="number" id="c-per-m2" value="8" min="1" step="1" oninput="calcUpdate()"/></div>' +
+      '<div class="calc-inp-wrap"><label>Штук в упаковке</label>' +
+        '<input class="calc-inp" type="number" id="c-pack" value="' + (packQty > 1 ? packQty : 250) + '" min="1" oninput="calcUpdate()"/></div>';
+    resultHint = 'Штук: <strong id="c-area">—</strong> &nbsp;·&nbsp; Упаковок: <strong id="c-sheets">—</strong>';
+
+  } else if (type === 'siding') {
+    fields =
+      '<div class="calc-inp-wrap"><label>Высота стены, м</label>' +
+        '<input class="calc-inp" type="number" id="c-wall-h" value="3" min="1" step="0.1" oninput="calcUpdate()"/></div>' +
+      '<div class="calc-inp-wrap"><label>Периметр здания, м</label>' +
+        '<input class="calc-inp" type="number" id="c-perim" value="40" min="1" step="0.5" oninput="calcUpdate()"/></div>' +
+      '<div class="calc-inp-wrap"><label>Проёмы (окна+двери), м²</label>' +
+        '<input class="calc-inp" type="number" id="c-openings" value="15" min="0" step="0.5" oninput="calcUpdate()"/></div>' +
+      '<div class="calc-inp-wrap"><label>Запас, %</label>' +
+        '<input class="calc-inp" type="number" id="c-margin" value="10" min="0" max="30" oninput="calcUpdate()"/></div>';
+    resultHint = 'Площадь: <strong id="c-area">—</strong> &nbsp;·&nbsp; Панелей: <strong id="c-sheets">—</strong>';
+  }
+
   return (
     '<div class="calc-panel">' +
-      '<h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="16" y2="10"/></svg>Калькулятор кровли</h3>' +
-      '<div class="calc-grid">' +
-        '<div class="calc-inp-wrap"><label>Длина ската, м</label><input class="calc-inp" type="number" id="c-len" value="10" min="1" step="0.1" oninput="calcUpdate()"/></div>' +
-        '<div class="calc-inp-wrap"><label>Ширина ската, м</label><input class="calc-inp" type="number" id="c-wid" value="6" min="1" step="0.1" oninput="calcUpdate()"/></div>' +
-        '<div class="calc-inp-wrap"><label>Скатов (шт)</label><input class="calc-inp" type="number" id="c-slopes" value="2" min="1" max="8" oninput="calcUpdate()"/></div>' +
-        '<div class="calc-inp-wrap"><label>Запас (%)</label><input class="calc-inp" type="number" id="c-margin" value="10" min="0" max="30" oninput="calcUpdate()"/></div>' +
-      '</div>' +
+      '<h3>' + (titles[type] || '🧮 Калькулятор') + '</h3>' +
+      '<div class="calc-grid">' + fields + '</div>' +
       '<div class="calc-result">' +
-        '<div class="cres-text">Площадь: <strong id="c-area">—</strong> · Листов: <strong id="c-sheets">—</strong></div>' +
+        '<div class="cres-text">' + resultHint + '</div>' +
         '<button class="calc-addbtn" onclick="calcAddToCart()">+ Добавить в корзину</button>' +
       '</div>' +
     '</div>'
@@ -689,27 +1012,80 @@ function renderCalcPanel() {
 }
 
 function calcUpdate() {
-  const len = parseFloat(document.getElementById('c-len')?.value) || 10;
-  const wid = parseFloat(document.getElementById('c-wid')?.value) || 6;
-  const slopes = parseInt(document.getElementById('c-slopes')?.value) || 2;
-  const margin = parseFloat(document.getElementById('c-margin')?.value) || 10;
-  const areaM = len * wid * slopes * (1 + margin / 100);
-  const sheets = Math.ceil(areaM / 0.9);
+  const type = getCalcType();
+  const prod = window._calcModalProd || modalProd || activeCat?.products[0];
+  const variant = prod?.variants?.[window._calcModalVar || 0] || prod?.variants?.[0];
+
+  let area = 0, qty = 0;
+
+  if (type === 'roofing') {
+    const len    = parseFloat(document.getElementById('c-len')?.value)    || 10;
+    const wid    = parseFloat(document.getElementById('c-wid')?.value)    || 6;
+    const slopes = parseInt(document.getElementById('c-slopes')?.value)   || 2;
+    const margin = parseFloat(document.getElementById('c-margin')?.value) || 10;
+    area = len * wid * slopes * (1 + margin / 100);
+    // Площадь одного листа/единицы
+    const unitM2 = (variant?.pack_quantity > 1 ? variant.pack_quantity : null)
+      || parseFloat((variant?.sku_name || '').match(/(\d+[.,]\d+)\s*м²/)?.[1]) || 0.9;
+    qty = Math.ceil(area / unitM2);
+
+  } else if (type === 'gutter') {
+    const perim     = parseFloat(document.getElementById('c-perim')?.value)      || 40;
+    const elemLen   = parseFloat(document.getElementById('c-gutter-len')?.value) || 3;
+    const margin    = parseFloat(document.getElementById('c-margin')?.value)      || 5;
+    area = perim * (1 + margin / 100);
+    qty = Math.ceil(area / elemLen);
+
+  } else if (type === 'insulation') {
+    const areaInp = parseFloat(document.getElementById('c-area-inp')?.value) || 60;
+    const layers  = parseInt(document.getElementById('c-layers')?.value)      || 1;
+    const packSz  = parseFloat(document.getElementById('c-pack')?.value)       || (variant?.pack_quantity || 1);
+    const margin  = parseFloat(document.getElementById('c-margin')?.value)     || 5;
+    area = areaInp * layers * (1 + margin / 100);
+    // Площадь одной плиты из sku_name, иначе 0.48 м² (типичная 600×800)
+    const plateM2 = parseFloat((variant?.sku_name || '').match(/(\d+[.,]\d+)\s*м²/)?.[1]) || 0.48;
+    const platesNeeded = Math.ceil(area / plateM2);
+    qty = Math.ceil(platesNeeded / packSz);
+
+  } else if (type === 'screws') {
+    const areaInp = parseFloat(document.getElementById('c-area-inp')?.value) || 80;
+    const perM2   = parseFloat(document.getElementById('c-per-m2')?.value)   || 8;
+    const packSz  = parseFloat(document.getElementById('c-pack')?.value)      || 250;
+    area = areaInp * perM2;  // total screws
+    qty = Math.ceil(area / packSz);
+
+  } else if (type === 'siding') {
+    const wallH    = parseFloat(document.getElementById('c-wall-h')?.value)    || 3;
+    const perim    = parseFloat(document.getElementById('c-perim')?.value)     || 40;
+    const openings = parseFloat(document.getElementById('c-openings')?.value)  || 15;
+    const margin   = parseFloat(document.getElementById('c-margin')?.value)    || 10;
+    area = (wallH * perim - openings) * (1 + margin / 100);
+    // Площадь одной панели
+    const panelM2 = parseFloat((variant?.sku_name || '').match(/(\d+[.,]\d+)\s*м²/)?.[1]) || 0.72;
+    qty = Math.ceil(area / panelM2);
+  }
+
   const aEl = document.getElementById('c-area');
   const sEl = document.getElementById('c-sheets');
-  if (aEl) aEl.textContent = areaM.toFixed(1) + ' м²';
-  if (sEl) sEl.textContent = sheets + ' шт.';
-  window._calcSheets = sheets;
-  window._calcArea = areaM;
+  const unitLabel = type === 'screws' ? ' шт.' : (type === 'gutter' ? ' м' : ' м²');
+  if (aEl) aEl.textContent = (type === 'screws' ? Math.round(area) : area.toFixed(1)) + unitLabel;
+  if (sEl) sEl.textContent = qty + (type === 'insulation' || type === 'screws' ? ' уп.' : ' шт.');
+  window._calcSheets = qty;
+  window._calcArea   = area;
 }
 
 function calcAddToCart() {
   calcUpdate();
-  const p = activeCat?.products[0];
+  // Приоритет: товар открытый в модале → выбранный вариант → первый товар категории
+  const p = window._calcModalProd || modalProd || activeCat?.products[0];
+  const varIdx = (window._calcModalProd ? window._calcModalVar : modalVar) || 0;
   if (!p) { toast('Выберите категорию товаров для расчёта', 'error'); return; }
-  const v = p.variants[0];
-  const fp = Math.round(v.price * DISCOUNT_RATE);
-  addToCart({ sku: v.sku, title: p.title + ' × ' + (window._calcSheets || 1) + ' шт. (расчёт)', price: fp, img: (v.images || [])[0] || '', qty: window._calcSheets || 1 });
+  const v = p.variants[varIdx] || p.variants[0];
+  const fp = Math.round(v.price * SALE_RATE);
+  const sheets = window._calcSheets || 1;
+  const varLabel = v.sku_name || v.color || '';
+  const titleLabel = p.title + (varLabel ? ' (' + varLabel + ')' : '') + ' × ' + sheets + ' шт.';
+  addToCart({ sku: v.sku, title: titleLabel, price: fp, img: (v.images || [])[0] || '', qty: sheets });
   const b = document.querySelector('.calc-addbtn');
   if (b) {
     b.textContent = '✓ Добавлено!';
@@ -741,7 +1117,7 @@ function injectProductSchema(prod, variant) {
   const old = document.getElementById('product-schema');
   if (old) old.remove();
 
-  const price = Math.round((variant.price || 0) * DISCOUNT_RATE);
+  const price = Math.round((variant.price || 0) * SALE_RATE);
 
   const schema = {
     "@context": "https://schema.org/",
@@ -796,6 +1172,9 @@ function openProd(id) {
   modalProd = findProd(id);
   if (!modalProd) return;
   modalVar = 0; modalImg = 0; modalQty = 1;
+  window._calcModalProd = modalProd;
+  window._calcModalVar = 0;
+  addToHistory(id);
   renderModal();
   document.getElementById('movl').style.display = 'flex';
   document.body.style.overflow = 'hidden';
@@ -808,9 +1187,70 @@ function closeMod() {
   document.getElementById('movl').style.display = 'none';
   document.body.style.overflow = '';
   removeURLParam('product');
+  _modalCalcOpen = false;
+  window._calcModalProd = null;
 }
 
 function handleMovl(e) { if (e.target === document.getElementById('movl')) closeMod(); }
+
+// ══ AUTO DESCRIPTION GENERATOR ═════════════════════════════════════════════
+// Генерирует читаемое описание из характеристик товара, если описание отсутствует в каталоге
+function buildAutoDescription(p, v) {
+  const feats = p.features || {};
+  const parts = [];
+
+  // Название товара как основа
+  const title = p.title || '';
+
+  // Производитель / бренд
+  const brand = feats['Производитель'] || feats['Бренд'] || '';
+  if (brand) parts.push('Производитель: ' + brand + '.');
+
+  // Материал / тип
+  const mat = feats['Материал'] || feats['Тип'] || feats['Вид'] || '';
+  if (mat) parts.push('Материал: ' + mat + '.');
+
+  // Покрытие
+  const cover = feats['Покрытие'] || feats['Тип покрытия'] || '';
+  if (cover) parts.push('Покрытие: ' + cover + '.');
+
+  // Размеры
+  const dims = [
+    feats['Длина'] ? 'длина ' + feats['Длина'] : '',
+    feats['Ширина'] ? 'ширина ' + feats['Ширина'] : '',
+    feats['Толщина'] ? 'толщина ' + feats['Толщина'] : '',
+    feats['Высота'] ? 'высота ' + feats['Высота'] : '',
+    feats['Диаметр'] ? 'диаметр ' + feats['Диаметр'] : '',
+  ].filter(Boolean);
+  if (dims.length) parts.push('Размеры: ' + dims.join(', ') + '.');
+
+  // Упаковка
+  const pack = feats['В упаковке'] || feats['Кол-во в упаковке'] || (v && v.pack_quantity > 1 ? v.pack_quantity + ' шт./уп.' : '');
+  if (pack) parts.push('В упаковке: ' + pack + '.');
+
+  // Цвет из варианта
+  const color = (v && (v.color || v.sku_name)) || feats['Цвет'] || '';
+  if (color) parts.push('Цвет: ' + color + '.');
+
+  // Страна производства
+  const country = feats['Страна производства'] || feats['Производство'] || feats['Страна'] || '';
+  if (country) parts.push('Производство: ' + country + '.');
+
+  // Применение / назначение
+  const use = feats['Назначение'] || feats['Применение'] || feats['Область применения'] || '';
+  if (use) parts.push('Применение: ' + use + '.');
+
+  // Гарантия
+  const guarantee = feats['Гарантия'] || feats['Срок службы'] || '';
+  if (guarantee) parts.push('Гарантия: ' + guarantee + '.');
+
+  if (!parts.length) {
+    // Минимальное описание если совсем нет характеристик
+    return title + ' — кровельный материал от проверенных производителей. Доставка по России.';
+  }
+
+  return title + '. ' + parts.join(' ') + ' Купить с доставкой по России в PLATFORMA.';
+}
 
 function renderModal() {
   const p = modalProd;
@@ -833,9 +1273,25 @@ function renderModal() {
 
   setupGalSwipe();
 
-  const fp = Math.round(v.price * DISCOUNT_RATE);
+  const fp = Math.round(v.price * SALE_RATE);
+  // Цена за упаковку (если pack_quantity > 1)
+  const packQtyModal = v.pack_quantity > 1 ? v.pack_quantity : null;
+  const fpPack = packQtyModal ? Math.round(v.price * packQtyModal * SALE_RATE) : null;
+  // Единица измерения: м², м или шт
+  const packUnit = (() => {
+    const f = p.features || {};
+    const inPack = f['В упаковке, м2'] || f['В упаковке м2'] || f['В упаковке, м²'];
+    if (inPack) return inPack + ' м²';
+    if (packQtyModal) return packQtyModal + ' шт.';
+    return null;
+  })();
+  const pricePerUnit = packUnit
+    ? '<div class="mprice-pack">За упаковку (' + packUnit + '): <strong>' + fmt(fpPack) + ' ₽</strong></div>'
+    : '';
   const pr = v.price > 0
-    ? '<span class="mprice">' + fmt(fp) + ' ₽</span><span class="mop">' + fmt(v.price) + ' ₽</span><span class="m-disc-tag">−7%</span>'
+    ? '<span class="mprice">' + fmt(fp) + ' ₽</span>' +
+      (packUnit ? '<span class="mprice-unit">/ ' + (packUnit.includes('м²') ? 'м²' : 'шт.') + '</span>' : '') +
+      '<span class="mop">' + fmt(v.price) + ' ₽</span><span class="m-disc-tag">−7%</span>'
     : '<span class="mprice" style="font-size:16px;color:var(--muted)">Цена по запросу</span>';
 
   const vars = p.variants.length > 1
@@ -846,8 +1302,10 @@ function renderModal() {
       '</div></div>'
     : '';
 
-  const desc = p.description
-    ? '<div><div class="vlabel" style="margin-bottom:5px">Описание</div><div class="mdesc">' + p.description + '</div></div>'
+  // Описание: берём из каталога или генерируем из характеристик
+  const descText = p.description || buildAutoDescription(p, v);
+  const desc = descText
+    ? '<div><div class="vlabel" style="margin-bottom:5px">Описание</div><div class="mdesc">' + descText + '</div></div>'
     : '';
 
   const feats = Object.keys(p.features || {}).slice(0, 10);
@@ -857,14 +1315,14 @@ function renderModal() {
       '</div></div>'
     : '';
 
-  const packNote = v.pack_quantity > 1 ? '<span style="font-size:11px;color:var(--muted)">× ' + v.pack_quantity + ' м²/уп</span>' : '';
+  const packNote = ''; // убрано — упаковка показана через pricePerUnit
   const productSlug = (p.id || '').split('--').pop() || p.id;
   const shareUrl = location.origin + location.pathname + '?cat=' + (activeCat?.slug || '') + '&product=' + encodeURIComponent(productSlug);
 
   document.getElementById('minfo').innerHTML =
     '<div class="mtitle">' + p.title + '</div>' +
     '<div class="msku">Арт. ' + v.sku + '</div>' +
-    '<div class="mpb">' + pr + '</div>' +
+    '<div class="mpb">' + pr + '</div>' + pricePerUnit +
     vars +
     '<div class="qrow">' +
       '<div class="vlabel">Кол-во:</div>' +
@@ -880,10 +1338,49 @@ function renderModal() {
         'Скопировать ссылку' +
       '</button>' +
     '</div>' +
-    '<button class="madd" onclick="addFromModal()">' +
-      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
-      'Добавить в корзину' +
-    '</button>';
+    '<div id="modal-calc-wrap"></div>' +
+    '<div class="modal-btn-row">' +
+      '<button class="madd" onclick="addFromModal()">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
+        'В корзину' +
+      '</button>' +
+      '<button class="mcalc-toggle" onclick="toggleModalCalc()" title="Открыть калькулятор">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="16" y2="14"/></svg>' +
+        'Калькулятор' +
+      '</button>' +
+      '<button class="cmp-btn" onclick="toggleCompare(\'' + p.id + '\',event)" data-cmp-id="' + p.id + '">' +
+        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>' +
+        'Сравнить' +
+      '</button>' +
+    '</div>' +
+    // Wholesale hint
+    '<div id="wholesale-hint" style="font-size:12px;margin-top:4px;min-height:16px"></div>' +
+    // Cross-sell (рендерим после)
+    '<div id="modal-cross-sell"></div>';
+
+  // Добавляем кнопку избранного
+  const mmod = document.getElementById('mmod');
+  if (mmod) {
+    mmod.style.position = 'relative';
+    const existFav = mmod.querySelector('.fav-btn');
+    if (!existFav) {
+      const favWrap = document.createElement('div');
+      favWrap.style.cssText = 'position:absolute;top:12px;right:12px;z-index:10';
+      favWrap.innerHTML = favBtnHtml(p.id);
+      mmod.appendChild(favWrap);
+    }
+  }
+
+  // Cross-sell
+  setTimeout(() => {
+    const cs = document.getElementById('modal-cross-sell');
+    if (cs && activeCat) cs.innerHTML = buildCrossSellHtml(activeCat.slug);
+    // Wholesale hint
+    updateWholesaleHint();
+    // Сравнение — обновляем состояние кнопки
+    const cmpBtn = document.querySelector('[data-cmp-id="' + p.id + '"]');
+    if (cmpBtn && getCompare().includes(p.id)) cmpBtn.classList.add('cmp-active');
+  }, 0);
 }
 
 function setupGalSwipe() {
@@ -903,7 +1400,7 @@ function syncGalUI() {
   document.querySelectorAll('.mthb').forEach((d, i) => d.classList.toggle('active', i === modalImg));
 }
 
-function selVar(i) { modalVar = i; modalImg = 0; renderModal(); }
+function selVar(i) { modalVar = i; modalImg = 0; window._calcModalVar = i; renderModal(); }
 
 function selImg(i) {
   modalImg = i;
@@ -920,10 +1417,31 @@ function chgQty(d) {
 
 function addFromModal() {
   const v = modalProd.variants[modalVar];
-  const fp = Math.round(v.price * DISCOUNT_RATE);
+  const fp = Math.round(v.price * SALE_RATE);
   addToCart({ sku: v.sku, title: modalProd.title + (v.color ? ' (' + v.color + ')' : ''), price: fp, img: (v.images || [])[0] || '', qty: modalQty });
   closeMod();
   openCart();
+}
+
+let _modalCalcOpen = false;
+function toggleModalCalc() {
+  _modalCalcOpen = !_modalCalcOpen;
+  const wrap = document.getElementById('modal-calc-wrap');
+  if (!wrap) return;
+  if (_modalCalcOpen) {
+    // Передаём текущий товар и вариант в глобальное состояние калькулятора
+    window._calcModalProd = modalProd;
+    window._calcModalVar  = modalVar;
+    wrap.innerHTML = renderCalcPanel();
+    setTimeout(calcUpdate, 50);
+    wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    const btn = document.querySelector('.mcalc-toggle');
+    if (btn) btn.classList.add('active');
+  } else {
+    wrap.innerHTML = '';
+    const btn = document.querySelector('.mcalc-toggle');
+    if (btn) btn.classList.remove('active');
+  }
 }
 
 function copyLink(url) {
@@ -980,7 +1498,7 @@ function renderZoom() {
   }
 
   overlay.style.display = 'flex';
-  
+
   const img = document.getElementById('zoom-img');
   img.src = zoomState.images[zoomState.currentIndex];
   img.onclick = (e) => {
@@ -991,7 +1509,7 @@ function renderZoom() {
   // Update dots
   const dotsContainer = document.getElementById('zoom-dots');
   if (zoomState.images.length > 1) {
-    dotsContainer.innerHTML = zoomState.images.map((_, i) => 
+    dotsContainer.innerHTML = zoomState.images.map((_, i) =>
       '<div class="zoom-dot ' + (i === zoomState.currentIndex ? 'active' : '') + '" onclick="goToZoom(' + i + ')"></div>'
     ).join('');
   }
@@ -1008,7 +1526,7 @@ function renderZoom() {
 
 function navigateZoom(direction) {
   if (!zoomState.images.length) return;
-  
+
   zoomState.currentIndex = (zoomState.currentIndex + direction + zoomState.images.length) % zoomState.images.length;
   renderZoom();
 }
@@ -1020,7 +1538,7 @@ function goToZoom(index) {
 
 function handleZoomKeydown(e) {
   if (!zoomState.isOpen) return;
-  
+
   switch(e.key) {
     case 'Escape':
       closeZoom();
@@ -1039,7 +1557,7 @@ function quickAdd(id) {
   const p = findProd(id);
   if (!p) return;
   const v = p.variants[0];
-  const fp = Math.round(v.price * DISCOUNT_RATE);
+  const fp = Math.round(v.price * SALE_RATE);
   addToCart({ sku: v.sku, title: p.title, price: fp, img: (v.images || [])[0] || '', qty: 1 });
   const btn = document.getElementById('ab-' + id);
   if (btn) {
@@ -1236,6 +1754,7 @@ function renderCheckout() {
   if (deliveryMethod === 'pvz') {
     initYaWidget();
   }
+  setTimeout(watchCheckoutPhone, 100);
 }
 
 
@@ -1365,8 +1884,10 @@ async function submitOrder() {
   };
 
   // ── Отправка в Telegram ──────────────────────────────────────────────
-  const TG_TOKEN  = window.TG_TOKEN;
-  const TG_CHAT   = window.TG_CHAT_ID;
+  // config.js объявляет через const — они не попадают в window, читаем напрямую
+  const _TG_TOKEN = (typeof TG_TOKEN !== 'undefined' && typeof TG_TOKEN === 'string') ? TG_TOKEN : (window.TG_TOKEN || ''  );
+  const _TG_CHAT  = (typeof TG_CHAT_ID !== 'undefined' && typeof TG_CHAT_ID === 'string') ? TG_CHAT_ID : (window.TG_CHAT_ID || '' );
+  const TG_CHAT   = _TG_CHAT;
 
   const itemsList = order.items.map(i =>
     `  • ${i.title} × ${i.qty} — ${i.price > 0 ? fmt(i.price * i.qty) + ' ₽' : 'по запросу'}`
@@ -1395,7 +1916,7 @@ async function submitOrder() {
   ].filter(Boolean).join('\n');
 
   try {
-    await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+    await fetch(`https://api.telegram.org/bot${_TG_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1444,7 +1965,7 @@ async function submitOrder() {
   // Сброс состояния доставки
   selectedPVZ = null;
   deliveryMethod = 'pvz';
-  cart = []; saveCart(); updateBadge();
+  cart = []; saveCart(); updateBadge(); clearAbandonedCart();
 }
 
 // ══ SEARCH ══════════════════════════════════════════════════════════════════
@@ -1470,7 +1991,7 @@ document.getElementById('srch').addEventListener('input', e => {
 
     dd.innerHTML = found.map(p => {
       const v = p.variants[0];
-      const fp = Math.round(v.price * DISCOUNT_RATE);
+      const fp = Math.round(v.price * SALE_RATE);
       const imgEl = (v.images && v.images[0])
         ? '<img src="' + v.images[0] + '" alt="" onerror="this.parentElement.innerHTML=\'<div class=srch-item-ph>📦</div>\'">'
         : '<div class="srch-item-ph">📦</div>';
@@ -1515,7 +2036,7 @@ function runFullSearch(q) {
   if (!found.length) { content.innerHTML = '<div class="loading">Ничего не найдено по «' + q + '»</div>'; return; }
   const cards = found.map(p => {
     const v = p.variants[0];
-    const fp = Math.round(v.price * DISCOUNT_RATE);
+    const fp = Math.round(v.price * SALE_RATE);
     const img = (v.images && v.images[0])
       ? '<img src="' + v.images[0] + '" alt="' + p.title + '" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=ph>📦</div>\'">'
       : '<div class="ph">📦</div>';
@@ -1790,7 +2311,7 @@ function generateProductSchema(product, category) {
   const offers = product.variants
     .filter(v => v.price > 0)
     .map(v => {
-      const discountedPrice = Math.round(v.price * 0.93);
+      const discountedPrice = Math.round(v.price * SALE_RATE);
       return {
         "@type": "Offer",
         "@id": `${baseUrl}${product.url}#offer-${v.sku}`,
@@ -1860,7 +2381,7 @@ function generateProductSchema(product, category) {
   const brand = product.features?.['Производитель'] || null;
 
   // Нахождение минимальной цены
-  const prices = product.variants.filter(v => v.price > 0).map(v => Math.round(v.price * 0.93));
+  const prices = product.variants.filter(v => v.price > 0).map(v => Math.round(v.price * SALE_RATE));
   const minPrice = prices.length ? Math.min(...prices) : null;
   const maxPrice = prices.length ? Math.max(...prices) : null;
 
@@ -2078,7 +2599,7 @@ function injectProductSchema(product) {
     "brand": { "@type": "Brand", "name": "PLATFORMA" },
     "offers": {
       "@type": "Offer",
-      "price": Math.round((product.variants?.[0]?.price || 0) * 0.93),
+      "price": Math.round((product.variants?.[0]?.price || 0) * SALE_RATE),
       "priceCurrency": "RUB",
       "availability": "https://schema.org/InStock",
       "url": "https://platforma-pro.vercel.app/"
@@ -2087,3 +2608,1303 @@ function injectProductSchema(product) {
   script.textContent = JSON.stringify(schema);
   document.head.appendChild(script);
 }
+
+// ══ FLOATING CONTACT WIDGET ════════════════════════════════════════════════
+// Конфиг: замени номер телефона и ссылку WA на свои
+const CONTACT_CFG = {
+  phone:     '+78001234567',          // номер для звонка и WA
+  wa:        'https://wa.me/78001234567', // ссылка WhatsApp (можно добавить ?text=...)
+  tg:        'https://t.me/platforma_support', // Telegram менеджера
+  workHours: '9:00–20:00',
+};
+
+function buildFloatWidget() {
+  if (document.getElementById('float-cta')) return;
+
+  // CSS
+  const style = document.createElement('style');
+  style.textContent = `
+    #float-cta {
+      position: fixed; bottom: 24px; right: 20px; z-index: 9999;
+      display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
+    }
+    .fcta-btn {
+      width: 52px; height: 52px; border-radius: 50%; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 16px rgba(0,0,0,.18); transition: transform .18s, box-shadow .18s;
+      flex-shrink: 0;
+    }
+    .fcta-btn:hover { transform: scale(1.08); box-shadow: 0 6px 24px rgba(0,0,0,.24); }
+    .fcta-btn svg { width: 26px; height: 26px; }
+    .fcta-main { background: #192C1E; }
+    .fcta-wa   { background: #25D366; }
+    .fcta-tg   { background: #229ED9; }
+    .fcta-phone{ background: #192C1E; }
+    .fcta-sub  {
+      display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+      transition: opacity .22s, transform .22s;
+    }
+    .fcta-sub.hidden { opacity: 0; pointer-events: none; transform: translateY(10px); }
+    .fcta-label {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .fcta-tip {
+      background: var(--panel, #fff); color: var(--text, #111);
+      font-size: 12px; padding: 5px 10px; border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.12); white-space: nowrap;
+      border: 1px solid var(--border, #e5e5e5);
+    }
+    /* Форма обратного звонка */
+    #callback-form {
+      position: fixed; bottom: 90px; right: 20px; z-index: 10000;
+      background: var(--panel, #fff); border: 1px solid var(--border,#ddd);
+      border-radius: 16px; padding: 20px; width: 280px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.16);
+      animation: slideUpIn .22s ease;
+    }
+    @keyframes slideUpIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+    #callback-form h4 {
+      margin: 0 0 4px; font-size: 15px; font-weight: 600;
+      color: var(--text,#111); font-family: var(--fh, sans-serif);
+    }
+    #callback-form p { margin: 0 0 14px; font-size: 12px; color: var(--muted,#888); }
+    #callback-form input {
+      width: 100%; padding: 10px 12px; border-radius: 9px;
+      border: 1px solid var(--border,#ddd); background: var(--bg,#fafafa);
+      color: var(--text,#111); font-size: 14px; margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+    #callback-form input:focus { outline: none; border-color: #192C1E; }
+    .cb-submit {
+      width: 100%; padding: 11px; border-radius: 9px;
+      background: #192C1E; color: #fff; border: none;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: opacity .15s;
+    }
+    .cb-submit:hover { opacity: .88; }
+    .cb-close-x {
+      position: absolute; top: 12px; right: 14px;
+      background: none; border: none; font-size: 18px;
+      color: var(--muted,#888); cursor: pointer; line-height: 1;
+    }
+    /* Пульс на главной кнопке при первом показе */
+    @keyframes pulse { 0%,100%{box-shadow:0 4px 16px rgba(0,0,0,.18)} 50%{box-shadow:0 4px 28px rgba(25,44,30,.55)} }
+    .fcta-main.pulse { animation: pulse 1.8s ease-in-out 3; }
+    /* Онлайн-индикатор */
+    .fcta-online {
+      position: absolute; top: 3px; right: 3px;
+      width: 12px; height: 12px; border-radius: 50%;
+      background: #4CAF50; border: 2px solid #fff;
+    }
+    /* Бейдж на кнопке если офлайн */
+    .fcta-offline { background: #aaa !important; }
+  `;
+  document.head.appendChild(style);
+
+  // Определяем рабочие часы
+  function isOnline() {
+    const h = new Date().getHours();
+    return h >= 9 && h < 20;
+  }
+  const online = isOnline();
+
+  // HTML виджета
+  const wrap = document.createElement('div');
+  wrap.id = 'float-cta';
+  wrap.innerHTML = `
+    <div class="fcta-sub hidden" id="fcta-sub">
+      <div class="fcta-label">
+        <span class="fcta-tip">Написать в Telegram</span>
+        <button class="fcta-btn fcta-tg" onclick="window.open('${CONTACT_CFG.tg}','_blank')" aria-label="Telegram">
+          <svg viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8l-1.68 7.92c-.13.57-.47.71-.94.44l-2.6-1.92-1.26 1.21c-.14.14-.26.26-.53.26l.19-2.67 4.87-4.4c.21-.19-.05-.29-.33-.1L7.7 14.47 5.14 13.7c-.55-.17-.56-.55.12-.82l10.43-4.02c.46-.17.86.11.95.94z"/></svg>
+        </button>
+      </div>
+      <div class="fcta-label">
+        <span class="fcta-tip">WhatsApp</span>
+        <button class="fcta-btn fcta-wa" onclick="window.open('${CONTACT_CFG.wa}','_blank')" aria-label="WhatsApp">
+          <svg viewBox="0 0 24 24" fill="white"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.38 1.26 4.79L2 22l5.45-1.43a9.88 9.88 0 004.59 1.14c5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2zm5.52 13.96c-.23.64-1.34 1.24-1.84 1.3-.5.06-1.14.09-1.84-.12-.42-.13-.97-.3-1.67-.59-2.93-1.27-4.85-4.23-4.99-4.42-.14-.2-1.14-1.52-1.14-2.9s.72-2.06.98-2.34c.26-.28.57-.35.76-.35h.55c.18 0 .42-.07.65.5.24.59.82 2 .89 2.15.07.14.12.31.02.5-.09.18-.14.3-.28.46-.14.16-.3.36-.42.48-.14.14-.29.29-.12.57.16.28.73 1.2 1.57 1.94 1.08.96 1.99 1.26 2.27 1.4.28.14.44.12.6-.07.16-.2.7-.82.88-1.1.18-.28.37-.23.62-.14.25.1 1.6.75 1.88.89.28.14.46.2.53.32.07.11.07.66-.16 1.3z"/></svg>
+        </button>
+      </div>
+      <div class="fcta-label">
+        <span class="fcta-tip">${online ? 'Заказать звонок' : 'Звонок (работаем ' + CONTACT_CFG.workHours + ')'}</span>
+        <button class="fcta-btn fcta-phone ${online ? '' : 'fcta-offline'}" onclick="openCallbackForm()" aria-label="Заказать звонок">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 011.05 2.18 2 2 0 013 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z"/></svg>
+        </button>
+      </div>
+    </div>
+    <div style="position:relative">
+      ${online ? '<div class="fcta-online"></div>' : ''}
+      <button class="fcta-btn fcta-main pulse" id="fcta-toggle" onclick="toggleFloatMenu()" aria-label="Связаться с нами">
+        <svg id="fcta-icon-chat" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        <svg id="fcta-icon-x" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" style="display:none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  `;
+  document.body.appendChild(wrap);
+
+  // Пульс через 3 сек после загрузки, чтобы не мешал первым впечатлениям
+  setTimeout(() => {
+    const btn = document.getElementById('fcta-toggle');
+    if (btn) btn.classList.add('pulse');
+  }, 3000);
+}
+
+let _floatOpen = false;
+function toggleFloatMenu() {
+  _floatOpen = !_floatOpen;
+  const sub = document.getElementById('fcta-sub');
+  const iconChat = document.getElementById('fcta-icon-chat');
+  const iconX    = document.getElementById('fcta-icon-x');
+  if (!sub) return;
+  sub.classList.toggle('hidden', !_floatOpen);
+  if (iconChat) iconChat.style.display = _floatOpen ? 'none' : '';
+  if (iconX)    iconX.style.display    = _floatOpen ? '' : 'none';
+  const btn = document.getElementById('fcta-toggle');
+  if (btn) { btn.classList.remove('pulse'); btn.style.background = _floatOpen ? '#444' : '#192C1E'; }
+}
+
+function openCallbackForm() {
+  if (document.getElementById('callback-form')) return;
+  const form = document.createElement('div');
+  form.id = 'callback-form';
+  const online = new Date().getHours() >= 9 && new Date().getHours() < 20;
+  form.innerHTML = `
+    <button class="cb-close-x" onclick="closeCallbackForm()">✕</button>
+    <h4>Перезвоним вам</h4>
+    <p>${online ? 'Обычно перезваниваем за 5–10 минут' : 'Перезвоним в рабочее время (' + CONTACT_CFG.workHours + ')'}</p>
+    <input type="tel" id="cb-phone" placeholder="+7 (___) ___-__-__" />
+    <input type="text" id="cb-name"  placeholder="Ваше имя" />
+    <button class="cb-submit" onclick="submitCallback()">Перезвоните мне</button>
+  `;
+  document.body.appendChild(form);
+  document.getElementById('cb-phone')?.focus();
+}
+
+function closeCallbackForm() {
+  document.getElementById('callback-form')?.remove();
+}
+
+async function submitCallback() {
+  const phone = document.getElementById('cb-phone')?.value.trim();
+  const name  = document.getElementById('cb-name')?.value.trim() || 'Клиент';
+  if (!phone || phone.length < 5) {
+    document.getElementById('cb-phone')?.classList.add('error');
+    return;
+  }
+
+  const _TG_TOKEN = (typeof TG_TOKEN !== 'undefined' && typeof TG_TOKEN === 'string') ? TG_TOKEN : (window.TG_TOKEN || '');
+  const _TG_CHAT  = (typeof TG_CHAT_ID !== 'undefined' && typeof TG_CHAT_ID === 'string') ? TG_CHAT_ID : (window.TG_CHAT_ID || '');
+
+  const text = `📞 *Заявка на звонок — PLATFORMA*\n\n👤 *Имя:* ${name}\n📱 *Телефон:* ${phone}\n🕐 ${new Date().toLocaleString('ru-RU')}`;
+
+  try {
+    await fetch(`https://api.telegram.org/bot${_TG_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: _TG_CHAT, text, parse_mode: 'Markdown' })
+    });
+  } catch(e) { console.error('callback send error', e); }
+
+  // Успех
+  const form = document.getElementById('callback-form');
+  if (form) {
+    form.innerHTML = `
+      <div style="text-align:center;padding:10px 0">
+        <div style="font-size:32px;margin-bottom:10px">✅</div>
+        <h4 style="margin:0 0 6px;color:var(--text,#111)">Заявка принята!</h4>
+        <p style="margin:0;font-size:13px;color:var(--muted,#888)">Перезвоним на номер<br><strong>${phone}</strong></p>
+        <button class="cb-submit" style="margin-top:14px" onclick="closeCallbackForm()">Закрыть</button>
+      </div>
+    `;
+    setTimeout(closeCallbackForm, 4000);
+  }
+
+  // Трекинг Яндекс.Метрика
+  if (window.ym) ym(109166481, 'reachGoal', 'callback_request');
+}
+
+// ══ ИНИЦИАЛИЗАЦИЯ FLOAT WIDGET ══════════════════════════════════════════════
+// Запускаем после загрузки каталога
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(buildFloatWidget, 800);
+});
+
+
+// ══ БРОШЕННАЯ КОРЗИНА ══════════════════════════════════════════════════════
+const ABANDONED_KEY   = 'platforma_abandoned';
+const ABANDON_DELAY   = 90 * 60 * 1000; // 90 мин в мс
+
+function saveAbandonedCart() {
+  if (!cart.length) return;
+  const phone = document.getElementById('co-phone')?.value.trim() || '';
+  localStorage.setItem(ABANDONED_KEY, JSON.stringify({
+    cart, phone, total: cart.reduce((s,c)=>s+c.price*c.qty,0),
+    savedAt: Date.now()
+  }));
+}
+
+function clearAbandonedCart() {
+  localStorage.removeItem(ABANDONED_KEY);
+}
+
+// Проверяем при загрузке страницы — есть ли брошенная корзина
+function checkAbandonedCart() {
+  const raw = localStorage.getItem(ABANDONED_KEY);
+  if (!raw) return;
+  let ab;
+  try { ab = JSON.parse(raw); } catch(e) { return; }
+  if (!ab || !ab.cart?.length) return;
+  const age = Date.now() - (ab.savedAt || 0);
+  // Показываем баннер если прошло > 5 мин (не сразу, чтобы не бесить)
+  if (age < 5 * 60 * 1000) return;
+
+  showAbandonedBanner(ab);
+}
+
+function showAbandonedBanner(ab) {
+  if (document.getElementById('abandoned-banner')) return;
+
+  const style = document.createElement('style');
+  style.textContent = `
+    #abandoned-banner {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 9998;
+      background: #192C1E; color: #fff;
+      padding: 10px 20px; display: flex; align-items: center;
+      justify-content: center; gap: 16px; flex-wrap: wrap;
+      font-size: 13px; animation: slideDown .3s ease;
+    }
+    @keyframes slideDown { from{transform:translateY(-100%)} to{transform:none} }
+    #abandoned-banner strong { font-weight: 600; }
+    .ab-restore {
+      background: #fff; color: #192C1E; border: none;
+      padding: 7px 16px; border-radius: 7px; font-size: 13px;
+      font-weight: 600; cursor: pointer; white-space: nowrap;
+    }
+    .ab-restore:hover { opacity: .9; }
+    .ab-dismiss {
+      background: none; border: none; color: rgba(255,255,255,.6);
+      font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1;
+    }
+  `;
+  document.head.appendChild(style);
+
+  const total = ab.cart.reduce((s,c)=>s+c.price*c.qty, 0);
+  const itemCount = ab.cart.reduce((s,c)=>s+c.qty, 0);
+
+  const banner = document.createElement('div');
+  banner.id = 'abandoned-banner';
+  banner.innerHTML = `
+    <span>🛒 У вас остался незавершённый заказ — <strong>${itemCount} ${itemCount===1?'товар':itemCount<5?'товара':'товаров'}</strong> на сумму <strong>${fmt(total)} ₽</strong></span>
+    <button class="ab-restore" onclick="restoreAbandonedCart()">Вернуться к заказу</button>
+    <button class="ab-dismiss" onclick="dismissAbandonedBanner()" aria-label="Закрыть">✕</button>
+  `;
+  document.body.prepend(banner);
+}
+
+function restoreAbandonedCart() {
+  const raw = localStorage.getItem(ABANDONED_KEY);
+  if (!raw) return;
+  let ab;
+  try { ab = JSON.parse(raw); } catch(e) { return; }
+  if (!ab?.cart?.length) return;
+
+  // Восстанавливаем корзину
+  ab.cart.forEach(item => {
+    const ex = cart.find(c => c.sku === item.sku);
+    if (ex) ex.qty += item.qty;
+    else cart.push({ ...item });
+  });
+  saveCart(); updateBadge();
+  clearAbandonedCart();
+  dismissAbandonedBanner();
+  openCart();
+  toast('Корзина восстановлена! ' + ab.cart.length + ' товаров', 'success');
+  if (window.ym) ym(109166481, 'reachGoal', 'abandoned_cart_restored');
+}
+
+function dismissAbandonedBanner() {
+  const b = document.getElementById('abandoned-banner');
+  if (b) { b.style.animation = 'slideDown .25s ease reverse'; setTimeout(()=>b.remove(), 250); }
+  clearAbandonedCart();
+}
+
+// Сохраняем корзину при вводе телефона в чекауте
+function watchCheckoutPhone() {
+  const el = document.getElementById('co-phone');
+  if (!el || el.dataset.abWatched) return;
+  el.dataset.abWatched = '1';
+  el.addEventListener('input', () => {
+    if (el.value.trim().length > 5) saveAbandonedCart();
+  });
+}
+
+// Хук: проверяем брошенную корзину после открытия чекаута
+const _origRenderCheckout = window.renderCheckout;
+
+// ══════════════════════════════════════════════════════════════════════════════
+
+// БЛОК 1: «С ЭТИМ ТОВАРОМ БЕРУТ» — cross-sell в карточке товара
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Маппинг: slug категории → смежные категории
+const CROSS_SELL_MAP = {
+  'myagkaya-krovlya':        ['samorezy','gvozdi-krovelnye','paroizolyatsiya','superdiffuzionnye-membrany','aeratory'],
+  'metallocherepitsa':       ['samorezy','snegozaderzhateli-steelx','trubchatye','superdiffuzionnye-membrany','aeratory'],
+  'profnastil':              ['samorezy','dlya-profnastila','superdiffuzionnye-membrany','konkovye-aeratory'],
+  'volnovoy-profil':         ['samorezy','aeratory','superdiffuzionnye-membrany'],
+  'kompozitnaya-cherepitsa': ['samorezy','snegozaderzhateli-steelx','aeratory'],
+  'falcevaya-krovlya':       ['dlya-faltsevoy-krovli','superdiffuzionnye-membrany','konkovye-aeratory'],
+  'ondulin':                 ['samorezy','gvozdi-krovelnye','aeratory'],
+  'onduvilla':               ['samorezy','gvozdi-krovelnye','aeratory'],
+  'vinilovyy':               ['samorezy','obreshetka','uteplitel','vetrozashchita'],
+  'metallicheskiy':          ['samorezy','obreshetka','uteplitel'],
+  'cokolnyy':                ['samorezy','obreshetka','gidroizolyatsiya'],
+  'fibrotsementnyy':         ['samorezy','obreshetka','uteplitel'],
+  'pod-brevno':              ['samorezy','obreshetka','uteplitel'],
+  'pod-kamen':               ['samorezy','obreshetka','uteplitel'],
+  'pod-derevo':              ['samorezy','obreshetka','uteplitel'],
+  'pod-brus':                ['samorezy','obreshetka','uteplitel'],
+  'pod-kirpich':             ['samorezy','obreshetka','uteplitel'],
+  'uteplitel':               ['paroizolyatsiya','vetrozashchita','superdiffuzionnye-membrany','samorezy'],
+  'paroizolyatsiya':         ['uteplitel','superdiffuzionnye-membrany','vetrozashchita'],
+  'superdiffuzionnye-membrany': ['uteplitel','paroizolyatsiya','samorezy'],
+  'metallicheskie':          ['aeratory','germetiki','samorezy'],
+  'plastikovye':             ['aeratory','germetiki','samorezy'],
+  'fakro':                   ['izolyatsionnye-oklady','shtory','uteplitel'],
+  'velux':                   ['izolyatsionnye-oklady','shtory','uteplitel'],
+  'profnastil-dlya-zabora':  ['evroshtaketnik','stolby-dlya-zabora','samorezy'],
+  'evroshtaketnik':          ['profnastil-dlya-zabora','stolby-dlya-zabora','samorezy'],
+  'schiedel':                ['flyugarka','prokhodnye-elementy','germetiki'],
+  'flue-line':               ['flyugarka','prokhodnye-elementy','germetiki'],
+  'fasadnye-paneli':         ['samorezy','obreshetka','uteplitel','vetrozashchita'],
+  'fibrotsementnye-paneli':  ['samorezy','obreshetka','uteplitel'],
+  'treedeck':                ['stupeni','samorezy','ograzhdeniya-dpk'],
+  'terrapol':                ['stupeni','samorezy','ograzhdeniya-dpk'],
+};
+
+// Названия категорий для заголовка блока
+const CAT_NAMES_CACHE = {};
+function getCatName(slug) {
+  if (CAT_NAMES_CACHE[slug]) return CAT_NAMES_CACHE[slug];
+  const c = catalog?.categories?.find(x => x.slug === slug);
+  CAT_NAMES_CACHE[slug] = c?.name || slug;
+  return CAT_NAMES_CACHE[slug];
+}
+
+function buildCrossSellHtml(currentCatSlug) {
+  const slugs = CROSS_SELL_MAP[currentCatSlug];
+  if (!slugs?.length || !catalog) return '';
+
+  const items = [];
+  for (const slug of slugs) {
+    const cat = catalog.categories.find(c => c.slug === slug);
+    if (!cat || !cat.products.length) continue;
+    // Берём самый дешёвый товар категории как представителя
+    const prod = [...cat.products].sort((a,b) =>
+      (a.variants[0]?.price || 999999) - (b.variants[0]?.price || 999999)
+    )[0];
+    const v = prod.variants[0];
+    const fp = Math.round(v.price * SALE_RATE);
+    const img = v.images?.[0] || '';
+    items.push({ prod, v, fp, img, catName: cat.name, catSlug: slug });
+    if (items.length >= 4) break;
+  }
+  if (!items.length) return '';
+
+  const cards = items.map(({ prod, v, fp, img, catName, catSlug }) =>
+    '<div class="cs-card" onclick="openCategory(\'' + catSlug + '\')">' +
+      '<div class="cs-img">' +
+        (img ? '<img src="' + img + '" loading="lazy" alt="' + catName + '">' : '<div class="cs-ph">📦</div>') +
+      '</div>' +
+      '<div class="cs-info">' +
+        '<div class="cs-cat">' + catName + '</div>' +
+        '<div class="cs-title">' + prod.title.slice(0, 45) + (prod.title.length > 45 ? '…' : '') + '</div>' +
+        '<div class="cs-price">' + (fp > 0 ? 'от ' + fmt(fp) + ' ₽' : 'по запросу') + '</div>' +
+      '</div>' +
+      '<button class="cs-add" onclick="event.stopPropagation();quickAdd(\'' + prod.id + '\')" title="Добавить в корзину">' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
+      '</button>' +
+    '</div>'
+  ).join('');
+
+  return (
+    '<div class="cs-block">' +
+      '<div class="cs-title-row">' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>' +
+        'С этим товаром берут' +
+      '</div>' +
+      '<div class="cs-grid">' + cards + '</div>' +
+    '</div>'
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// БЛОК 2: ИСТОРИЯ ПРОСМОТРОВ — «Вы смотрели»
+// ══════════════════════════════════════════════════════════════════════════════
+
+const HISTORY_KEY  = 'platforma_history';
+const HISTORY_MAX  = 10;
+
+function addToHistory(prodId) {
+  let h = [];
+  try { h = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch(e) {}
+  h = h.filter(id => id !== prodId);
+  h.unshift(prodId);
+  if (h.length > HISTORY_MAX) h = h.slice(0, HISTORY_MAX);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+}
+
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch(e) { return []; }
+}
+
+function buildHistoryHtml() {
+  const ids = getHistory();
+  if (!ids.length || !catalog) return '';
+
+  const prods = ids
+    .map(id => { for (const c of catalog.categories) { const p = c.products.find(x=>x.id===id); if(p) return p; } return null; })
+    .filter(Boolean)
+    .slice(0, 6);
+
+  if (prods.length < 2) return ''; // меньше 2 — не показываем
+
+  const cards = prods.map(p => {
+    const v = p.variants[0];
+    const fp = Math.round(v.price * SALE_RATE);
+    const img = v.images?.[0] || '';
+    return (
+      '<div class="hist-card" onclick="openProd(\'' + p.id + '\')">' +
+        '<div class="hist-img">' +
+          (img ? '<img src="' + img + '" loading="lazy" alt="' + p.title + '">' : '<div class="hist-ph">📦</div>') +
+        '</div>' +
+        '<div class="hist-title">' + p.title.slice(0, 38) + (p.title.length>38?'…':'') + '</div>' +
+        '<div class="hist-price">' + (fp > 0 ? fmt(fp) + ' ₽' : 'по запросу') + '</div>' +
+      '</div>'
+    );
+  }).join('');
+
+  return (
+    '<div class="hist-block">' +
+      '<div class="hist-hdr">Вы смотрели</div>' +
+      '<div class="hist-scroll">' + cards + '</div>' +
+    '</div>'
+  );
+}
+
+// Рендерим историю на главной и в категориях
+function injectHistoryBlock() {
+  const existing = document.getElementById('history-block');
+  if (existing) existing.remove();
+  const html = buildHistoryHtml();
+  if (!html) return;
+  const wrap = document.createElement('div');
+  wrap.id = 'history-block';
+  wrap.innerHTML = html;
+  const content = document.getElementById('content');
+  if (content) content.appendChild(wrap);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// БЛОК 3: УМНЫЕ ФАСЕТЫ — фильтры по характеристикам товаров
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Ключевые характеристики для фильтрации (в порядке важности)
+const FACET_KEYS = [
+  'Покрытие', 'Толщина металла, мм', 'Гарантия, лет',
+  'Производитель', 'Материал', 'Цвет',
+  'Толщина, мм', 'Диаметр', 'Длина',
+];
+
+function buildFacetsHtml() {
+  if (!activeCat?.products?.length) return '';
+
+  // Собираем уникальные значения по ключевым полям
+  const facets = {};
+  for (const p of activeCat.products) {
+    for (const key of FACET_KEYS) {
+      const val = p.features?.[key];
+      if (!val) continue;
+      if (!facets[key]) facets[key] = new Set();
+      facets[key].add(val);
+    }
+  }
+
+  // Оставляем только фасеты с 2–12 уникальными значениями (иначе бесполезны)
+  const usable = Object.entries(facets)
+    .filter(([, vals]) => vals.size >= 2 && vals.size <= 12)
+    .slice(0, 4); // максимум 4 фасета
+
+  if (!usable.length) return '';
+
+  // Активные фасет-фильтры
+  if (!window._activeFacets) window._activeFacets = {};
+
+  const html = usable.map(([key, vals]) => {
+    const sortedVals = [...vals].sort((a, b) => {
+      const na = parseFloat(a), nb = parseFloat(b);
+      return (!isNaN(na) && !isNaN(nb)) ? na - nb : a.localeCompare(b, 'ru');
+    });
+    const chips = sortedVals.map(v =>
+      '<button class="facet-chip ' + (window._activeFacets[key] === v ? 'active' : '') + '" ' +
+        'onclick="toggleFacet(\'' + key.replace(/'/g,"\\'") + '\',\'' + v.replace(/'/g,"\\'") + '\')">' +
+        v +
+      '</button>'
+    ).join('');
+    return (
+      '<div class="facet-group">' +
+        '<div class="facet-key">' + key + '</div>' +
+        '<div class="facet-chips">' + chips + '</div>' +
+      '</div>'
+    );
+  }).join('');
+
+  const hasActive = Object.keys(window._activeFacets).length > 0;
+  return (
+    '<div class="facets-bar" id="facets-bar">' +
+      html +
+      (hasActive ? '<button class="facet-clear" onclick="clearFacets()">✕ Сбросить</button>' : '') +
+    '</div>'
+  );
+}
+
+function toggleFacet(key, val) {
+  if (!window._activeFacets) window._activeFacets = {};
+  if (window._activeFacets[key] === val) {
+    delete window._activeFacets[key];
+  } else {
+    window._activeFacets[key] = val;
+  }
+  renderProducts();
+}
+
+function clearFacets() {
+  window._activeFacets = {};
+  renderProducts();
+}
+
+// Патчим getFilteredProducts — добавляем фасет-фильтрацию
+
+// ══════════════════════════════════════════════════════════════════════════════
+// БЛОК 4: CSS для всего нового
+// ══════════════════════════════════════════════════════════════════════════════
+
+(function injectFeatureStyles() {
+  if (document.getElementById('feature-styles-2')) return;
+  const s = document.createElement('style');
+  s.id = 'feature-styles-2';
+  s.textContent = `
+    /* ── Cross-sell block ─────────────────────── */
+    .cs-block {
+      margin: 20px 0 0; padding-top: 18px;
+      border-top: 1px solid var(--border);
+    }
+    .cs-title-row {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 13px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .04em;
+      margin-bottom: 12px;
+    }
+    .cs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 10px;
+    }
+    .cs-card {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--surface);
+      cursor: pointer; transition: border-color .15s, background .15s;
+      position: relative;
+    }
+    .cs-card:hover { border-color: var(--accent,#888); background: var(--panel); }
+    .cs-img { width: 52px; height: 52px; border-radius: 7px; overflow: hidden; flex-shrink: 0; background: var(--surface2); }
+    .cs-img img { width: 100%; height: 100%; object-fit: cover; }
+    .cs-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+    .cs-info { flex: 1; min-width: 0; }
+    .cs-cat { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 2px; }
+    .cs-title { font-size: 12px; color: var(--text); line-height: 1.35; margin-bottom: 3px; }
+    .cs-price { font-size: 13px; font-weight: 600; color: var(--text); }
+    .cs-add {
+      width: 28px; height: 28px; border-radius: 7px;
+      background: var(--dark,#192C1E); color: #fff;
+      border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: opacity .15s;
+    }
+    .cs-add:hover { opacity: .8; }
+
+    /* ── History block ────────────────────────── */
+    .hist-block { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--border); }
+    .hist-hdr {
+      font-size: 13px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .04em; margin-bottom: 12px;
+    }
+    .hist-scroll {
+      display: flex; gap: 10px; overflow-x: auto;
+      padding-bottom: 6px; scrollbar-width: thin;
+    }
+    .hist-card {
+      min-width: 130px; max-width: 130px; cursor: pointer;
+      border: 1px solid var(--border); border-radius: 10px;
+      padding: 9px; background: var(--surface); transition: border-color .15s;
+      flex-shrink: 0;
+    }
+    .hist-card:hover { border-color: var(--accent,#888); }
+    .hist-img { width: 100%; height: 80px; border-radius: 6px; overflow: hidden; background: var(--surface2); margin-bottom: 7px; }
+    .hist-img img { width: 100%; height: 100%; object-fit: cover; }
+    .hist-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 28px; }
+    .hist-title { font-size: 11px; color: var(--text); line-height: 1.3; margin-bottom: 4px; }
+    .hist-price { font-size: 12px; font-weight: 600; color: var(--text); }
+
+    /* ── Facets bar ───────────────────────────── */
+    .facets-bar {
+      display: flex; flex-wrap: wrap; align-items: flex-start;
+      gap: 14px; padding: 14px 16px; margin-bottom: 14px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    .facet-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+    .facet-key {
+      font-size: 11px; color: var(--muted); font-weight: 600;
+      text-transform: uppercase; letter-spacing: .04em;
+      white-space: nowrap; margin-right: 2px;
+    }
+    .facet-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .facet-chip {
+      padding: 4px 11px; border-radius: 20px; font-size: 12px;
+      border: 1px solid var(--border); background: var(--bg);
+      color: var(--text); cursor: pointer; transition: .15s; white-space: nowrap;
+    }
+    .facet-chip:hover { border-color: var(--dark,#192C1E); }
+    .facet-chip.active {
+      background: var(--dark,#192C1E); color: #fff; border-color: var(--dark,#192C1E);
+    }
+    .facet-clear {
+      padding: 4px 11px; border-radius: 20px; font-size: 12px;
+      border: 1px solid var(--danger,#e05); background: transparent;
+      color: var(--danger,#e05); cursor: pointer; align-self: center;
+      white-space: nowrap;
+    }
+  `;
+  document.head.appendChild(s);
+})();
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ХУКИ — вызываем новые блоки из существующих функций
+// ══════════════════════════════════════════════════════════════════════════════
+
+// 1. Добавляем cross-sell в модал карточки товара (после блока характеристик)
+
+// 2. Трекинг просмотра: сохраняем в историю при открытии товара
+const _origOpenProd = openProd;
+openProd = function(id) {
+  _origOpenProd(id);
+  if (id) addToHistory(id);
+};
+
+// 3. Фасеты + история — вызываем в renderProducts (патчим через MutationObserver на content)
+
+// ══════════════════════════════════════════════════════════════════════════════
+// БЛОК 5: ИЗБРАННОЕ (❤️ без регистрации, localStorage)
+// ══════════════════════════════════════════════════════════════════════════════
+
+const FAVS_KEY = 'platforma_favs';
+
+function getFavs() {
+  try { return new Set(JSON.parse(localStorage.getItem(FAVS_KEY) || '[]')); } catch(e) { return new Set(); }
+}
+function saveFavs(set) { localStorage.setItem(FAVS_KEY, JSON.stringify([...set])); }
+
+function toggleFav(prodId, e) {
+  if (e) e.stopPropagation();
+  const favs = getFavs();
+  const was = favs.has(prodId);
+  was ? favs.delete(prodId) : favs.add(prodId);
+  saveFavs(favs);
+  // Обновляем все кнопки с этим id на странице
+  document.querySelectorAll('[data-fav-id="' + prodId + '"]').forEach(btn => {
+    btn.classList.toggle('fav-active', !was);
+    btn.setAttribute('aria-label', was ? 'В избранное' : 'Убрать из избранного');
+  });
+  toast(was ? 'Убрано из избранного' : '❤️ Добавлено в избранное', was ? '' : 'success');
+}
+
+function favBtnHtml(prodId) {
+  const active = getFavs().has(prodId);
+  return (
+    '<button class="fav-btn ' + (active ? 'fav-active' : '') + '" ' +
+      'data-fav-id="' + prodId + '" ' +
+      'onclick="toggleFav(\'' + prodId + '\',event)" ' +
+      'aria-label="' + (active ? 'Убрать из избранного' : 'В избранное') + '">' +
+      '<svg width="15" height="15" viewBox="0 0 24 24" fill="' + (active ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>' +
+      '</svg>' +
+    '</button>'
+  );
+}
+
+// Добавляем кнопку ❤️ в модал
+
+// ══════════════════════════════════════════════════════════════════════════════
+// БЛОК 6: СРАВНЕНИЕ ТОВАРОВ (до 4 товаров, таблица по характеристикам)
+// ══════════════════════════════════════════════════════════════════════════════
+
+const COMPARE_KEY = 'platforma_compare';
+const COMPARE_MAX = 4;
+
+function getCompare() {
+  try { return JSON.parse(localStorage.getItem(COMPARE_KEY) || '[]'); } catch(e) { return []; }
+}
+function saveCompare(arr) { localStorage.setItem(COMPARE_KEY, JSON.stringify(arr)); }
+
+function toggleCompare(prodId, e) {
+  if (e) e.stopPropagation();
+  let list = getCompare();
+  const idx = list.indexOf(prodId);
+  if (idx >= 0) {
+    list.splice(idx, 1);
+    toast('Убрано из сравнения');
+  } else {
+    if (list.length >= COMPARE_MAX) { toast('Максимум ' + COMPARE_MAX + ' товара', 'error'); return; }
+    list.push(prodId);
+    toast('➕ Добавлено к сравнению');
+  }
+  saveCompare(list);
+  updateCompareBar();
+  document.querySelectorAll('[data-cmp-id="' + prodId + '"]').forEach(btn => {
+    btn.classList.toggle('cmp-active', list.includes(prodId));
+  });
+}
+
+function compareBtnHtml(prodId) {
+  const active = getCompare().includes(prodId);
+  return (
+    '<button class="cmp-btn ' + (active ? 'cmp-active' : '') + '" ' +
+      'data-cmp-id="' + prodId + '" ' +
+      'onclick="toggleCompare(\'' + prodId + '\',event)" ' +
+      'title="' + (active ? 'Убрать из сравнения' : 'Сравнить') + '">' +
+      '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>' +
+      (active ? '' : ' Сравнить') +
+    '</button>'
+  );
+}
+
+// Плавающая панель внизу при добавлении в сравнение
+function updateCompareBar() {
+  const list = getCompare();
+  let bar = document.getElementById('compare-bar');
+  if (!list.length) { if (bar) bar.remove(); return; }
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'compare-bar';
+    document.body.appendChild(bar);
+  }
+  const prods = list.map(id => {
+    for (const c of catalog?.categories || []) {
+      const p = c.products.find(x => x.id === id);
+      if (p) return p;
+    }
+    return null;
+  }).filter(Boolean);
+
+  bar.innerHTML =
+    '<div class="cb-items">' +
+      prods.map(p =>
+        '<div class="cb-item">' +
+          '<span>' + p.title.slice(0,22) + (p.title.length>22?'…':'') + '</span>' +
+          '<button onclick="toggleCompare(\'' + p.id + '\',event)" class="cb-rm">✕</button>' +
+        '</div>'
+      ).join('') +
+    '</div>' +
+    '<div class="cb-btns">' +
+      '<button class="cb-go" onclick="openCompareView()">Сравнить ' + list.length + ' товара</button>' +
+      '<button class="cb-clr" onclick="clearCompare()">Очистить</button>' +
+    '</div>';
+}
+
+function clearCompare() {
+  saveCompare([]);
+  document.querySelectorAll('.cmp-btn').forEach(b => b.classList.remove('cmp-active'));
+  updateCompareBar();
+}
+
+function openCompareView() {
+  const list = getCompare();
+  if (list.length < 2) { toast('Добавьте хотя бы 2 товара', 'error'); return; }
+
+  const prods = list.map(id => {
+    for (const c of catalog?.categories || []) {
+      const p = c.products.find(x => x.id === id);
+      if (p) return p;
+    }
+    return null;
+  }).filter(Boolean);
+
+  // Собираем все уникальные ключи характеристик
+  const allKeys = [...new Set(prods.flatMap(p => Object.keys(p.features || {})))];
+
+  // Шапка
+  const headCells = prods.map(p => {
+    const v = p.variants[0];
+    const img = v.images?.[0] || '';
+    const fp = Math.round(v.price * SALE_RATE);
+    return (
+      '<th>' +
+        (img ? '<img src="' + img + '" style="width:80px;height:60px;object-fit:cover;border-radius:6px;display:block;margin:0 auto 6px">' : '') +
+        '<div style="font-size:12px;font-weight:600;line-height:1.3;margin-bottom:4px">' + p.title.slice(0,50) + '</div>' +
+        '<div style="font-size:14px;font-weight:700;color:var(--text)">' + fmt(fp) + ' ₽</div>' +
+        '<button style="margin-top:8px;font-size:11px;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--dark);color:#fff;cursor:pointer" onclick="addFromCompare(\'' + p.id + '\')">+ В корзину</button>' +
+      '</th>'
+    );
+  }).join('');
+
+  // Строки характеристик
+  const rows = allKeys.map(key => {
+    const vals = prods.map(p => (p.features?.[key] || '—'));
+    // Подсвечиваем лучшее значение (числовые — максимум)
+    const nums = vals.map(v => parseFloat(v));
+    const allNum = nums.every(n => !isNaN(n));
+    const maxNum = allNum ? Math.max(...nums) : null;
+    const cells = vals.map((v, i) => {
+      const isBest = allNum && parseFloat(v) === maxNum;
+      return '<td style="' + (isBest ? 'font-weight:600;color:var(--dark)' : '') + '">' + v + '</td>';
+    }).join('');
+    return '<tr><td class="cmp-key">' + key + '</td>' + cells + '</tr>';
+  }).join('');
+
+  const html =
+    '<div id="compare-ovl" onclick="if(event.target===this)closeCompare()" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10001;overflow-y:auto;padding:20px">' +
+      '<div style="background:var(--panel);border-radius:16px;max-width:900px;margin:0 auto;padding:24px;position:relative">' +
+        '<button onclick="closeCompare()" style="position:absolute;top:14px;right:14px;background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted)">✕</button>' +
+        '<h3 style="margin:0 0 18px;font-size:17px">Сравнение товаров</h3>' +
+        '<div style="overflow-x:auto">' +
+          '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
+            '<thead><tr><th style="text-align:left;padding:8px;width:150px">Характеристика</th>' + headCells + '</tr></thead>' +
+            '<tbody>' + rows + '</tbody>' +
+          '</table>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeCompare() {
+  document.getElementById('compare-ovl')?.remove();
+}
+
+function addFromCompare(prodId) {
+  const prod = (() => {
+    for (const c of catalog?.categories || []) {
+      const p = c.products.find(x => x.id === prodId);
+      if (p) return p;
+    }
+  })();
+  if (!prod) return;
+  const v = prod.variants[0];
+  addToCart({ sku: v.sku, title: prod.title, price: Math.round(v.price * SALE_RATE), img: v.images?.[0] || '', qty: 1 });
+}
+
+// Добавляем кнопку сравнения в модал
+
+// ══════════════════════════════════════════════════════════════════════════════
+// БЛОК 7: ОПТОВЫЕ СКИДКИ (объём в калькуляторе → цена меняется)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Пороги: от N единиц → множитель цены
+const WHOLESALE_TIERS = [
+  { min: 1,   mult: 1.00, label: '' },
+  { min: 10,  mult: 0.97, label: '−3% от 10 шт' },
+  { min: 30,  mult: 0.95, label: '−5% от 30 шт' },
+  { min: 100, mult: 0.92, label: '−8% от 100 шт' },
+  { min: 300, mult: 0.88, label: '−12% от 300 шт' },
+];
+
+function getWholesaleMult(qty) {
+  let best = WHOLESALE_TIERS[0];
+  for (const t of WHOLESALE_TIERS) { if (qty >= t.min) best = t; }
+  return best;
+}
+
+// Показываем оптовые тиры в модале при изменении qty
+
+function updateWholesaleHint() {
+  const hint = document.getElementById('wholesale-hint');
+  const qty = modalQty || 1;
+  const tier = getWholesaleMult(qty);
+  const nextTier = WHOLESALE_TIERS.find(t => t.min > qty);
+
+  if (hint) {
+    if (tier.label) {
+      hint.textContent = '✅ ' + tier.label;
+      hint.style.color = 'var(--success, #2d9e6b)';
+    } else if (nextTier) {
+      hint.textContent = 'Закажите от ' + nextTier.min + ' шт — ' + nextTier.label;
+      hint.style.color = 'var(--muted)';
+    } else {
+      hint.textContent = '';
+    }
+  }
+
+  // Пересчитываем цену в .mpb при изменении qty
+  if (!modalProd) return;
+  const v = modalProd.variants[modalVar] || modalProd.variants[0];
+  const baseFp = Math.round(v.price * SALE_RATE);
+  const fp = Math.round(baseFp * tier.mult);
+  const priceEl = document.querySelector('.mpb .mprice');
+  if (priceEl && fp !== baseFp) priceEl.textContent = fmt(fp) + ' ₽*';
+}
+
+// Хук на изменение qty в модале
+const _origSelQty = window.selQty;
+if (typeof selQty === 'function') {
+  const __origSelQty = selQty;
+  window.selQty = function(d) { __origSelQty(d); setTimeout(updateWholesaleHint, 50); };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// БЛОК 8: QUICK-ADD — быстрое добавление с карточки без открытия модала
+// ══════════════════════════════════════════════════════════════════════════════
+
+function quickAdd(prodId) {
+  if (!catalog) return;
+  let prod = null;
+  for (const c of catalog.categories) {
+    prod = c.products.find(p => p.id === prodId);
+    if (prod) break;
+  }
+  if (!prod) return;
+  const v = prod.variants[0];
+  const fp = Math.round(v.price * SALE_RATE);
+  addToCart({ sku: v.sku, title: prod.title, price: fp, img: v.images?.[0] || '', qty: 1 });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// БЛОК 9: CSS для сравнения, избранного, оптовых скидок
+// ══════════════════════════════════════════════════════════════════════════════
+
+(function injectStyles3() {
+  if (document.getElementById('platforma-styles-3')) return;
+  const s = document.createElement('style');
+  s.id = 'platforma-styles-3';
+  s.textContent = `
+    /* ── Fav button ──────────────────────── */
+    .fav-btn {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--surface); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: .18s; color: var(--muted);
+    }
+    .fav-btn:hover, .fav-btn.fav-active { color: #e53; border-color: #e53; }
+    .fav-btn.fav-active { background: #fff0f0; }
+
+    /* ── Compare bar ─────────────────────── */
+    #compare-bar {
+      position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 14px; padding: 12px 16px;
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      box-shadow: 0 6px 24px rgba(0,0,0,.15); z-index: 1000;
+      max-width: 600px; width: calc(100% - 32px);
+    }
+    .cb-items { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; }
+    .cb-item {
+      display: flex; align-items: center; gap: 5px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 4px 8px; font-size: 12px; color: var(--text);
+    }
+    .cb-rm { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 12px; line-height: 1; }
+    .cb-btns { display: flex; gap: 8px; }
+    .cb-go {
+      padding: 8px 16px; border-radius: 9px;
+      background: var(--dark, #192C1E); color: #fff;
+      border: none; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .cb-clr {
+      padding: 8px 12px; border-radius: 9px;
+      background: none; border: 1px solid var(--border);
+      font-size: 13px; color: var(--muted); cursor: pointer;
+    }
+    /* .cmp-btn — стиль в style.css */
+    .cmp-key { text-align: left; padding: 7px 10px; color: var(--muted); font-size: 12px; background: var(--surface); }
+    #compare-ovl td, #compare-ovl th { border: 1px solid var(--border); padding: 8px 12px; text-align: center; vertical-align: middle; }
+    #compare-ovl tr:nth-child(even) td { background: var(--surface); }
+
+    /* ── Wholesale hint ──────────────────── */
+    #wholesale-hint {
+      font-size: 12px; margin-top: 5px; min-height: 16px;
+      transition: color .2s;
+    }
+  `;
+  document.head.appendChild(s);
+})();
+
+// ══════════════════════════════════════════════════════════════════════════════
+// БЛОК 10: WHOLESALE HINT в модале — добавляем элемент после .mpb
+// ══════════════════════════════════════════════════════════════════════════════
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SEO: ДИНАМИЧЕСКИЕ МЕТА-ТЕГИ + РОУТИНГ
+// При открытии ?product=ID или ?category=SLUG — обновляем:
+//   title, description, canonical, og:tags, JSON-LD schema Product/BreadcrumbList
+// Яндекс при рендере увидит правильные теги на каждой "странице"
+// ══════════════════════════════════════════════════════════════════════════════
+
+const SITE_URL  = 'https://platforma-pro.vercel.app';
+const SITE_NAME = 'PLATFORMA';
+
+function setMeta(name, content) {
+  let el = document.querySelector('meta[name="' + name + '"]');
+  if (!el) { el = document.createElement('meta'); el.name = name; document.head.appendChild(el); }
+  el.content = content;
+}
+function setOG(prop, content) {
+  let el = document.querySelector('meta[property="' + prop + '"]');
+  if (!el) { el = document.createElement('meta'); el.setAttribute('property', prop); document.head.appendChild(el); }
+  el.content = content;
+}
+function setCanonical(url) {
+  let el = document.querySelector('link[rel="canonical"]');
+  if (!el) { el = document.createElement('link'); el.rel = 'canonical'; document.head.appendChild(el); }
+  el.href = url;
+}
+function setSchemaLD(id, obj) {
+  let el = document.getElementById(id);
+  if (!el) { el = document.createElement('script'); el.type = 'application/ld+json'; el.id = id; document.head.appendChild(el); }
+  el.textContent = JSON.stringify(obj);
+}
+
+// Строим URL страницы товара: /?product=ID
+function prodPageUrl(prod) {
+  return SITE_URL + '/?product=' + encodeURIComponent(prod.id);
+}
+// Строим URL страницы категории: /?category=SLUG
+function catPageUrl(slug) {
+  return SITE_URL + '/?category=' + encodeURIComponent(slug);
+}
+
+function updateSEOForProduct(prod, cat) {
+  if (!prod) return;
+  const v = prod.variants[0];
+  const fp = v?.price > 0 ? Math.round(v.price * SALE_RATE) : null;
+  const img = v?.images?.[0] || '';
+  const desc = buildAutoDescription(prod, v);
+  const url  = prodPageUrl(prod);
+  const catName = cat?.name || '';
+  const groupName = catalog?.groups?.[cat?.group]?.name || 'Кровля';
+
+  // Title: «Название | Категория | PLATFORMA»
+  document.title = prod.title + ' — купить в ' + SITE_NAME + (fp ? ' от ' + fmt(fp) + ' ₽' : '') + ' | Доставка по России';
+
+  setMeta('description',
+    (desc || prod.title) + (fp ? '. Цена: от ' + fmt(fp) + ' ₽.' : '') + ' Доставка по всей России. Интернет-магазин ' + SITE_NAME + '.'
+  );
+  setCanonical(url);
+  setOG('og:title',       prod.title + ' — ' + SITE_NAME);
+  setOG('og:description', desc || prod.title);
+  setOG('og:url',         url);
+  setOG('og:type',        'product');
+  if (img) { setOG('og:image', img); setOG('og:image:alt', prod.title); }
+
+  // JSON-LD: Product schema — звёздочки в поиске Яндекса
+  const productSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    'name': prod.title,
+    'description': desc || prod.title,
+    'url': url,
+    'image': img ? [img] : [],
+    'brand': { '@type': 'Brand', 'name': prod.features?.['Производитель'] || SITE_NAME },
+    'offers': fp ? {
+      '@type': 'Offer',
+      'priceCurrency': 'RUB',
+      'price': fp,
+      'availability': 'https://schema.org/InStock',
+      'seller': { '@type': 'Organization', 'name': SITE_NAME },
+      'url': url,
+    } : undefined,
+    'additionalProperty': Object.entries(prod.features || {}).slice(0, 10).map(([k, v]) => ({
+      '@type': 'PropertyValue', 'name': k, 'value': v
+    })),
+  };
+  if (!productSchema.offers) delete productSchema.offers;
+  setSchemaLD('schema-product-dynamic', productSchema);
+
+  // JSON-LD: BreadcrumbList
+  const breadcrumb = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    'itemListElement': [
+      { '@type': 'ListItem', 'position': 1, 'name': 'Главная',   'item': SITE_URL + '/' },
+      { '@type': 'ListItem', 'position': 2, 'name': groupName,   'item': SITE_URL + '/?group=' + (cat?.group || '') },
+      { '@type': 'ListItem', 'position': 3, 'name': catName,     'item': catPageUrl(cat?.slug || '') },
+      { '@type': 'ListItem', 'position': 4, 'name': prod.title,  'item': url },
+    ],
+  };
+  setSchemaLD('schema-breadcrumb-dynamic', breadcrumb);
+
+  // Яндекс.Метрика — ecommerce просмотр товара
+  if (window.dataLayer) window.dataLayer.push({ ecommerce: { detail: { products: [{ id: prod.id, name: prod.title, price: fp || 0, category: catName }] } } });
+}
+
+function updateSEOForCategory(cat) {
+  if (!cat) return;
+  const url = catPageUrl(cat.slug);
+  const groupName = catalog?.groups?.[cat.group]?.name || 'Каталог';
+  const count = cat.products?.length || 0;
+
+  document.title = cat.name + ' — купить в ' + SITE_NAME + ' | ' + count + ' товаров с доставкой по России';
+  setMeta('description',
+    cat.name + ' в интернет-магазине ' + SITE_NAME + '. ' + count + ' товаров от ведущих производителей. Скидка −7% на весь каталог. Доставка по России.'
+  );
+  setCanonical(url);
+  setOG('og:title',       cat.name + ' — ' + SITE_NAME);
+  setOG('og:description', cat.name + ': ' + count + ' товаров. Доставка по России.');
+  setOG('og:url',         url);
+  setOG('og:type',        'website');
+
+  // BreadcrumbList для категории
+  const breadcrumb = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    'itemListElement': [
+      { '@type': 'ListItem', 'position': 1, 'name': 'Главная',  'item': SITE_URL + '/' },
+      { '@type': 'ListItem', 'position': 2, 'name': groupName,  'item': SITE_URL + '/?group=' + (cat.group || '') },
+      { '@type': 'ListItem', 'position': 3, 'name': cat.name,   'item': url },
+    ],
+  };
+  setSchemaLD('schema-breadcrumb-dynamic', breadcrumb);
+
+  // ItemList schema — список товаров категории для Яндекса
+  const itemList = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    'name': cat.name,
+    'url': url,
+    'numberOfItems': count,
+    'itemListElement': (cat.products || []).slice(0, 20).map((p, i) => ({
+      '@type': 'ListItem',
+      'position': i + 1,
+      'url': prodPageUrl(p),
+      'name': p.title,
+    })),
+  };
+  setSchemaLD('schema-itemlist-dynamic', itemList);
+}
+
+function resetSEOToHome() {
+  document.title = SITE_NAME + ' — Кровельные материалы, водостоки и изоляция с доставкой по России';
+  setMeta('description', 'Интернет-магазин ' + SITE_NAME + ': металлочерепица, водостоки, утеплитель и фасадные панели. 1992 товара от ведущих брендов. Скидка −7% на весь каталог.');
+  setCanonical(SITE_URL + '/');
+  setOG('og:title', SITE_NAME + ' — Кровельные материалы, водостоки, изоляция');
+  setOG('og:url', SITE_URL + '/');
+  setOG('og:type', 'website');
+  // Убираем динамические схемы
+  ['schema-product-dynamic','schema-breadcrumb-dynamic','schema-itemlist-dynamic'].forEach(id => {
+    document.getElementById(id)?.remove();
+  });
+}
+
+// ── URL-роутер: обновляем адрес браузера без перезагрузки страницы ──────────
+function pushRoute(params) {
+  const url = new URL(location.href);
+  // Сбрасываем старые параметры
+  ['product','category','group'].forEach(k => url.searchParams.delete(k));
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  history.pushState({}, '', url.toString());
+}
+function popRoute() {
+  const url = new URL(location.href);
+  ['product','category','group'].forEach(k => url.searchParams.delete(k));
+  history.pushState({}, '', url.toString());
+}
+
+// ── Патчим openProd — добавляем pushState + SEO ──────────────────────────────
+
+// ── Патчим closeMod — убираем product из URL ─────────────────────────────────
+const __origCloseMod = closeMod;
+closeMod = function() {
+  __origCloseMod();
+  // Удаляем product из URL, оставляем category если была
+  const url = new URL(location.href);
+  url.searchParams.delete('product');
+  history.pushState({}, '', url.toString());
+  // Восстанавливаем SEO категории или главной
+  if (activeCat) updateSEOForCategory(activeCat);
+  else resetSEOToHome();
+};
+
+// ── Патчим selectCat — обновляем URL и SEO при выборе категории ──────────────
+const __origSelectCat = typeof selectCat === 'function' ? selectCat : null;
+if (__origSelectCat) {
+  selectCat = function(slug) {
+    __origSelectCat(slug);
+    const cat = catalog?.categories?.find(c => c.slug === slug);
+    pushRoute({ category: slug });
+    if (cat) updateSEOForCategory(cat);
+  };
+}
+
+// ── При кнопке браузера «Назад/Вперёд» ──────────────────────────────────────
+window.addEventListener('popstate', () => {
+  const params = new URLSearchParams(location.search);
+  const productId  = params.get('product');
+  const categorySlug = params.get('category');
+  if (productId) {
+    openProd(productId);
+  } else if (categorySlug && typeof selectCat === 'function') {
+    selectCat(categorySlug);
+    closeMod();
+  } else {
+    closeMod();
+    resetSEOToHome();
+  }
+});
+
+// ── При первой загрузке — читаем URL и открываем нужную страницу ─────────────
+function handleInitialRoute() {
+  const params = new URLSearchParams(location.search);
+  const productId    = params.get('product');
+  const categorySlug = params.get('category');
+  if (productId) {
+    // Ждём загрузки каталога
+    const tryOpen = () => {
+      if (!catalog) { setTimeout(tryOpen, 100); return; }
+      openProd(productId);
+    };
+    tryOpen();
+  } else if (categorySlug) {
+    const trySelect = () => {
+      if (!catalog) { setTimeout(trySelect, 100); return; }
+      if (typeof selectCat === 'function') selectCat(categorySlug);
+    };
+    trySelect();
+  }
+}
+document.addEventListener('DOMContentLoaded', handleInitialRoute);
+
+// ══ ONLINE-КНОПКА В ХЕДЕРЕ ════════════════════════════════════════════════
+function updateOnlineBtn() {
+  const btn    = document.getElementById('hdr-online-btn');
+  const dot    = document.getElementById('hdr-online-dot');
+  const status = document.getElementById('hdr-online-status');
+  if (!btn) return;
+
+  const h = new Date().getHours();
+  const online = h >= 9 && h < 20;   // рабочие часы 9:00–20:00
+
+  if (online) {
+    btn.classList.remove('offline');
+    if (status) status.textContent = 'Online';
+  } else {
+    btn.classList.add('offline');
+    if (status) status.textContent = 'Offline';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  updateOnlineBtn();
+  // Обновляем каждую минуту (переход Online→Offline в 20:00)
+  setInterval(updateOnlineBtn, 60 * 1000);
+});

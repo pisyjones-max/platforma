@@ -1,123 +1,15 @@
-# ═══════════════════════════════════════════════════════════════════════════
-# robots.txt для platforma-pro.vercel.app
-# Оптимизирован для:
-# - Vercel (Edge Functions, serverless)
-# - Node.js Express сервер (/api/* маршруты)
-# - Яндекс.Бот и Google Bot
-# Последнее обновление: 2026-05-13
-# ═══════════════════════════════════════════════════════════════════════════
+User-agent: *
+Allow: /
 
-# ─── ОСНОВНЫЕ БОТЫ (Яндекс + Google) ────────────────────────────────────
-User-agent: Yandex
-Crawl-delay: 2
-Disallow: /api/
-Disallow: /orders/
-Disallow: /admin/
-Disallow: /?search=
+# Не индексируем служебные параметры
 Disallow: /*?*sort=
 Disallow: /*?*filter=
 Disallow: /*?*page=
-Allow: /api/catalog
 
-User-agent: Googlebot
-Crawl-delay: 1
-Disallow: /api/
-Disallow: /orders/
-Disallow: /admin/
-Disallow: /?search=
-Disallow: /*?*sort=
-Disallow: /*?*filter=
-Allow: /api/catalog
-
-# ─── МЕДИА-БОТЫ (для индексации изображений) ─────────────────────────
-User-agent: Googlebot-Image
-Allow: /
-Disallow: /admin/
-
-User-agent: YandexImages
-Allow: /
-Disallow: /admin/
-
-# ─── БОТЫ СОЦИАЛЬНЫХ СЕТЕЙ (нужны для Open Graph превью) ──────────────
-User-agent: facebookexternalhit
-Allow: /
-
-User-agent: vkShare
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: TelegramBot
-Allow: /
-
-# ─── АГРЕГАТОРЫ ЦЕН (разрешаем парсинг товаров) ─────────────────────
-User-agent: YandexMarket
-Allow: /
-Disallow: /admin/
-Disallow: /api/orders
-
-# ─── НЕЖЕЛАТЕЛЬНЫЕ БОТЫ (SEO-спам, скрейперы) ────────────────────────
-User-agent: AhrefsBot
-Disallow: /
-
-User-agent: SemrushBot
-Disallow: /
-
-User-agent: MJ12bot
-Disallow: /
-
-User-agent: DotBot
-Disallow: /
-
-User-agent: BLEXBot
-Disallow: /
-
-User-agent: DataForSeoBot
-Disallow: /
-
-# ─── ГЛОБАЛЬНЫЕ ПРАВИЛА (для всех остальных ботов) ────────────────────
-User-agent: *
-# API-эндпоинты — только /api/catalog публичный
-Disallow: /api/
-Allow:    /api/catalog
-
-# Служебные файлы
-Disallow: /orders/
-Disallow: /admin/
-Disallow: /.env
-Disallow: /node_modules/
-Disallow: /parser_with_json.py
-Disallow: /server.js
-
-# Параметры, создающие дубли страниц
-Disallow: /*?search=
-Disallow: /*?sort=
-Disallow: /*?filter=
-Disallow: /*?page=
-Disallow: /*?utm_source=
-Disallow: /*?utm_medium=
-Disallow: /*?utm_campaign=
-Disallow: /*?ref=
-Disallow: /*?fbclid=
-Disallow: /*?gclid=
-
-# Технические файлы (разрешены для ботов)
-Allow: /sitemap.xml
-Allow: /robots.txt
-Allow: /manifest.webmanifest
-Allow: /favicon.ico
-Allow: /*.css
-Allow: /*.js
-Allow: /*.png
-Allow: /*.jpg
-Allow: /*.webp
-Allow: /*.svg
-Allow: /*.woff2
-
-# ─── SITEMAP ──────────────────────────────────────────────────────────
+# Sitemap
 Sitemap: https://platforma-pro.vercel.app/sitemap.xml
-Sitemap: https://platforma-pro.vercel.app/sitemap-images.xml
 
-# ─── HOST (важно для Яндекса) ─────────────────────────────────────────
-Host: platforma-pro.vercel.app
+# Яндекс — даём время на JS-рендеринг
+User-agent: Yandex
+Allow: /
+Crawl-delay: 1

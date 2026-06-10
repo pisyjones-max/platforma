@@ -1,4 +1,3 @@
-```css
 /* ══════════════════════════════════════════════════════════════════════════
    PLATFORMA — style.css  v3.0 (fixed layout)
 ══════════════════════════════════════════════════════════════════════════ */
@@ -686,12 +685,73 @@ input, select, textarea { font-family: var(--fb); }
 .madd {
   height: 48px; border-radius: 12px;
   background: var(--accent); color: #fff; border: none;
-  font-size: 14px; font-weight: 600; margin-top: auto;
+  font-size: 14px; font-weight: 600; margin-top: 0;
   display: flex; align-items: center; justify-content: center; gap: 8px;
   transition: background .15s, transform .1s; flex-shrink: 0;
+  cursor: pointer;
 }
 .madd:hover  { background: var(--accent-h); }
 .madd:active { transform: scale(.98); }
+
+/* ── Ряд кнопок в модале товара ─────────────────────────────── */
+.modal-btn-row {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: auto;   /* прижимаем к низу minfo как раньше делал .madd */
+  flex-shrink: 0;
+}
+.modal-btn-row .madd {
+  flex: 1;
+  margin-top: 0;
+}
+.mcalc-toggle {
+  height: 48px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--fb);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: border-color .15s, background .15s;
+}
+.mcalc-toggle:hover,
+.mcalc-toggle.active {
+  border-color: var(--dark);
+  background: var(--surface);
+}
+.cmp-btn {
+  height: 48px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--fb);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: border-color .15s, background .15s;
+}
+.cmp-btn:hover,
+.cmp-btn.cmp-active {
+  border-color: var(--dark);
+  background: var(--surface);
+}
 
 .share-row { display: flex; gap: 8px; align-items: center; }
 .share-btn {
@@ -986,10 +1046,62 @@ input, select, textarea { font-family: var(--fb); }
 
   /* Модалки */
   .moverlay     { align-items: flex-end; padding: 0; }
-  .modal        { grid-template-columns: 1fr; max-height: 95vh; border-radius: 16px 16px 0 0; align-self: flex-end; width: 100%; }
-  .mgal         { max-height: 260px; }
-  .mgal-slide   { min-height: 220px; }
-  .minfo        { max-height: calc(95vh - 260px); overflow-y: auto; }
+
+  /* Модал — flex-column на мобайле, не grid */
+  .modal {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: unset !important;
+    grid-template-rows: unset !important;
+    max-height: 95vh;
+    border-radius: 16px 16px 0 0;
+    align-self: flex-end;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  /* Галерея — явная высота чтобы не схлопывалась */
+  .mgal {
+    flex: 0 0 280px;
+    height: 280px;
+    min-height: 280px;
+    max-height: 280px;
+    width: 100%;
+  }
+  .mgal-track {
+    flex: 1;
+    height: 210px;
+    min-height: 210px;
+  }
+  .mgal-slide {
+    height: 210px;
+    min-height: 210px;
+    width: 100vw;
+    max-width: 100%;
+  }
+  .mgal-slide img {
+    max-height: 210px;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+  }
+  .mthbs {
+    flex: 0 0 70px;
+    min-height: 70px;
+  }
+
+  /* Инфо — скроллится */
+  .minfo {
+    flex: 1 1 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    max-height: none;
+    padding: 20px 18px 32px;
+  }
+
+  /* Кнопки — в строку */
+  .modal-btn-row { flex-direction: row; flex-wrap: nowrap; }
+  .modal-btn-row .madd { flex: 1; min-width: 0; }
 
   .comodal      { border-radius: 16px 16px 0 0; padding: 22px 18px; align-self: flex-end; }
   .loyalty-modal { border-radius: 16px 16px 0 0; align-self: flex-end; max-height: 95vh; }
@@ -1024,116 +1136,86 @@ input, select, textarea { font-family: var(--fb); }
 
 /* ─ Маленькие мобилки (≤480px) ─ */
 @media (max-width: 480px) {
-  #hdr          { padding: 0 12px; gap: 8px; }
+  #hdr          { padding: 0 10px; gap: 6px; }
   .logo         { font-size: 14px; }
-  .hbt          { width: 36px; height: 36px; }
-  #srchwrap     { max-width: none; }
+  .hbt          { width: 34px; height: 34px; }
+  #srchwrap     { flex: 1; min-width: 0; }
 
-  .ggrid        { grid-template-columns: 1fr; gap: 10px; }
+  /* Категории — 2 колонки даже на маленьких */
+  .ggrid        { grid-template-columns: repeat(2, 1fr); gap: 10px; }
 
-  .pgrid        { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  .pinfo        { padding: 10px 10px 0; }
-  .addbtn       { margin: 8px 10px 10px; height: 36px; font-size: 12px; }
+  /* Товары — 2 колонки */
+  .pgrid        { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .pinfo        { padding: 9px 10px 0; }
+  .addbtn       { margin: 6px 9px 9px; height: 34px; font-size: 12px; }
 
-  .hero h1      { font-size: 16px; }
+  .hero         { padding: 18px 16px; }
+  .hero h1      { font-size: 15px; }
   .lc-balance   { font-size: 22px; }
 
-  /* Карточки категорий в 1 колонку на самых маленьких */
-  .gcard-info   { padding: 10px 12px 6px; }
-  .gcard-title  { font-size: 13px; }
-  .gcard-icon   { font-size: 32px; }
-}
-```
-
----
-
-### Что именно было исправлено
-
-**1. Дубли классов (главная причина поломки):**
-- `.gcard-thumbs` был определён **дважды**: сначала как `aspect-ratio: 4/3; flex;` (обложка), потом как `width: 88px; height: 72px` (список). CSS берёт **последнее** определение, поэтому мозаика схлопывалась. Теперь одно чёткое определение с `aspect-ratio: 4/3`.
-- `.gcard-thumbs-grid` — аналогично. Убран второй дубль с фиксированными пикселями.
-
-**2. `!important` на `.ggrid`:**
-- `grid-template-columns: repeat(4,1fr) !important` мешал адаптиву. Теперь управление через обычный каскад с `@media`.
-
-**3. Адаптивная сетка `.ggrid`:**
-```
-≥1200px  → 4 колонки
-≥900px   → 3 колонки
-≥480px   → 2 колонки
-<480px   → 1 колонка
-```
-
-**4. `.gcard-arrow` — убран конфликт:**
-Раньше `padding` был одновременно в `.gcard-info` и отдельно в `.gcard-arrow`. Теперь стрелка через `align-self: flex-end; padding: 0 16px 14px`.
-
-**5. Модальные окна на мобилках:**
-`align-items: flex-end` + `border-radius: 16px 16px 0 0` — выезжают снизу как sheet.
-/* ── Бренд-бар над карточками ───────────────────────────────────────── */
-.brand-bar {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding: 0 0 8px;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  flex-wrap: nowrap;
-  align-items: center;
-}
-.brand-bar::-webkit-scrollbar { display: none; }
-.brand-btn {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 14px;
-  border-radius: 20px;
-  border: 1.5px solid var(--border);
-  background: var(--surface);
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all .15s;
-  white-space: nowrap;
-}
-.brand-btn:hover {
-  border-color: var(--dark);
-  color: var(--dark);
-  background: rgba(74,173,100,.06);
-}
-.brand-btn.active {
-  background: var(--dark);
-  border-color: var(--dark);
-  color: #fff;
-}
-.brand-btn .brand-count {
-  font-size: 10px;
-  opacity: .65;
-  font-weight: 400;
+  /* Карточки категорий — компактнее */
+  .gcard-info   { padding: 9px 10px 6px; }
+  .gcard-title  { font-size: 12px; line-height: 1.3; }
+  .gcard-sub    { font-size: 11px; }
+  .gcard-icon   { font-size: 30px; }
+  .gcard-arrow  { padding: 0 10px 10px; font-size: 16px; }
 }
 
-/* ── Бренд-тег на карточке товара ────────────────────────────────────── */
-.pcard-brand {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: .4px;
-  text-transform: uppercase;
-  color: var(--accent, #4aad64);
-  background: rgba(74,173,100,.1);
-  border: 1px solid rgba(74,173,100,.22);
-  border-radius: 4px;
-  padding: 2px 7px;
-  margin: 3px 0 4px;
-  cursor: pointer;
-  transition: background .15s;
-}
-.pcard-brand:hover { background: rgba(74,173,100,.2); }
 
-/* ── Мобайл ──────────────────────────────────────────────────────────── */
+/* ── Хедер на мобайле — прячем строку поиска, оставляем кнопку ── */
+@media (max-width: 560px) {
+  /* Online-кнопка: только иконка + «→» */
+  .hdr-online-status { display: none; }
+  .hdr-online-sep    { display: none; }
+  .hdr-online-dot    { margin-left: 10px; }
+  .hdr-online-cta    { padding: 0 12px; font-size: 12px; }
+  .hdr-online-btn    { height: 32px; }
+}
+
+@media (max-width: 440px) {
+  /* Совсем мало места — прячем Online-кнопку из хедера совсем
+     (она всё равно есть в плавающем виджете справа внизу)      */
+  .hdr-online-btn { display: none; }
+  #srchwrap       { flex: 1; }
+}
+
+/* ── Карточки категорий на мобайле ───────────────────────────────────────
+   На узком экране 3 картинки в ряд слишком мелкие — показываем 2            */
 @media (max-width: 768px) {
-  #app { grid-template-columns: 1fr; }
-  #sidebar { display: none; }
-  .pgrid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+  /* 2 колонки для категорий — уже задано выше, дополняем */
+  .gcard { border-radius: 12px; }
+
+  /* Картинки: aspect-ratio сохраняем, но ограничиваем высоту */
+  .gcard-thumb,
+  .gcard-thumbs,
+  .gcard-thumbs-grid,
+  .gcard-icon {
+    max-height: 160px;
+  }
+
+  /* 3 картинки в ряд → показываем только 2, третья скрыта */
+  .gcard-thumbs img:nth-child(3) { display: none; }
+  .gcard-thumbs img:nth-child(1),
+  .gcard-thumbs img:nth-child(2) { flex: 1; }
+
+  .gcard-info { padding: 10px 12px 6px; }
+  .gcard-title { font-size: 12.5px; }
+  .gcard-sub   { font-size: 11px; min-height: 0; }
+  .gcard-arrow { padding: 0 12px 10px; }
+
+  /* Цена в карточке категории — зелёная, чуть меньше */
+  .gcard-price { font-size: 11px; }
+}
+
+@media (max-width: 480px) {
+  .gcard-thumb,
+  .gcard-thumbs,
+  .gcard-thumbs-grid,
+  .gcard-icon {
+    max-height: 130px;
+  }
+  /* На очень маленьких — показываем только 1 картинку */
+  .gcard-thumbs img:nth-child(2) { display: none; }
+  .gcard-thumbs img:nth-child(1) { flex: 1; border-radius: 0; }
+  .gcard-title { font-size: 12px; }
 }
