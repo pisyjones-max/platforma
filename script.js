@@ -15,11 +15,10 @@ let loyaltyCard = JSON.parse(localStorage.getItem('platforma_loyalty') || 'null'
 let currentView = 'groups'; // 'groups', 'categories', 'products'
 let activeGroup = null;
 
-// Цена = прайс × 0.99 (на 1% дешевле источника) — базовая цена магазина
-// Акционная цена со скидкой −7% от базовой = прайс × 0.99 × 0.93 ≈ 0.9207
-const PRICE_BASE   = 0.99;   // базовая цена относительно прайса (−1%)
-const DISCOUNT_RATE = 0.93;  // скидочный множитель (−7% от базовой)
-const SALE_RATE     = PRICE_BASE * DISCOUNT_RATE; // итоговый множитель ~0.9207
+// Цена = прайс × 0.99 (на 1% дешевле источника)
+const PRICE_BASE   = 0.99;
+const DISCOUNT_RATE = 1.0;   // скидка отключена
+const SALE_RATE     = PRICE_BASE; // итоговый множитель 0.99
 const CASHBACK_RATE = 0.005;
 
 // ══ TOAST ══════════════════════════════════════════════════════════════════
@@ -345,7 +344,7 @@ function renderGroups() {
       '</div>' +
       '<div class="hero-right">' +
         '<div class="hero-stat"><span>' + catalog.meta.total_products + '</span><small>товаров</small></div>' +
-        '<div class="hero-badge"><div class="hero-badge-val">−7%</div><div class="hero-badge-lbl">скидка</div></div>' +
+        '' +
       '</div>' +
     '</div>';
 
@@ -512,7 +511,7 @@ function renderCategories() {
       '</div>' +
       '<div class="hero-right">' +
         '<div class="hero-stat"><span>' + activeGroup.categories.length + '</span><small>подкатегорий</small></div>' +
-        '<div class="hero-badge"><div class="hero-badge-val">−7%</div><div class="hero-badge-lbl">скидка</div></div>' +
+        '' +
       '</div>' +
     '</div>';
 
@@ -759,7 +758,7 @@ function renderProducts() {
       '</div>' +
       '<div class="hero-right">' +
         '<div class="hero-stat"><span>' + total + '</span><small>товаров</small></div>' +
-        '<div class="hero-badge"><div class="hero-badge-val">−7%</div><div class="hero-badge-lbl">скидка</div></div>' +
+        '' +
       '</div>' +
     '</div>';
 
@@ -869,7 +868,7 @@ function renderProducts() {
       : '<div class="ph">📦</div>';
     const fp = Math.round(v.price * SALE_RATE);
     const pr = v.price > 0
-      ? '<span class="pp">' + fmt(fp) + ' ₽</span><span class="pop">' + fmt(v.price) + ' ₽</span>'
+      ? '<span class="pp">' + fmt(fp) + ' ₽</span>'
       : '<span class="pp" style="font-size:12px;color:var(--muted)">По запросу</span>';
     const vl = p.variants.length > 1
       ? '<div class="pvars"><div class="pvars-dot"></div>' + p.variants.length + ' вариантов</div>' : '';
@@ -884,7 +883,7 @@ function renderProducts() {
 
     return (
       '<div class="pcard" onclick="openProd(\'' + p.id + '\')">' +
-        (v.price > 0 ? '<div class="pcard-discount-tag">−7%</div>' : '') +
+        (v.price > 0 ? '' : '') +
         '<div class="pthumb">' + img + '</div>' +
         '<div class="pinfo">' +
           '<div class="ptitle">' + p.title + '</div>' +
@@ -1331,7 +1330,7 @@ function renderModal() {
   const pr = v.price > 0
     ? '<span class="mprice">' + fmt(fp) + ' ₽</span>' +
       (packUnit ? '<span class="mprice-unit">/ ' + (packUnit.includes('м²') ? 'м²' : 'шт.') + '</span>' : '') +
-      '<span class="mop">' + fmt(v.price) + ' ₽</span><span class="m-disc-tag">−7%</span>'
+      ''
     : '<span class="mprice" style="font-size:16px;color:var(--muted)">Цена по запросу</span>';
 
   const vars = p.variants.length > 1
@@ -2081,7 +2080,7 @@ function runFullSearch(q) {
       ? '<img src="' + v.images[0] + '" alt="' + p.title + '" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=ph>📦</div>\'">'
       : '<div class="ph">📦</div>';
     const pr = v.price > 0
-      ? '<span class="pp">' + fmt(fp) + ' ₽</span><span class="pop">' + fmt(v.price) + ' ₽</span>'
+      ? '<span class="pp">' + fmt(fp) + ' ₽</span>'
       : '<span class="pp" style="font-size:12px;color:var(--muted)">По запросу</span>';
     return (
       '<div class="pcard" onclick="openProd(\'' + p.id + '\')">' +
@@ -3805,7 +3804,7 @@ function updateSEOForCategory(cat) {
 
   document.title = cat.name + ' — купить в ' + SITE_NAME + ' | ' + count + ' товаров с доставкой по России';
   setMeta('description',
-    cat.name + ' в интернет-магазине ' + SITE_NAME + '. ' + count + ' товаров от ведущих производителей. Скидка −7% на весь каталог. Доставка по России.'
+    cat.name + ' в интернет-магазине ' + SITE_NAME + '. ' + count + ' товаров от ведущих производителей. Доставка по России.'
   );
   setCanonical(url);
   setOG('og:title',       cat.name + ' — ' + SITE_NAME);
@@ -3844,7 +3843,7 @@ function updateSEOForCategory(cat) {
 
 function resetSEOToHome() {
   document.title = SITE_NAME + ' — Кровельные материалы, водостоки и изоляция с доставкой по России';
-  setMeta('description', 'Интернет-магазин ' + SITE_NAME + ': металлочерепица, водостоки, утеплитель и фасадные панели. 1992 товара от ведущих брендов. Скидка −7% на весь каталог.');
+  setMeta('description', 'Интернет-магазин ' + SITE_NAME + ': металлочерепица, водостоки, утеплитель и фасадные панели. 1992 товара от ведущих брендов.');
   setCanonical(SITE_URL + '/');
   setOG('og:title', SITE_NAME + ' — Кровельные материалы, водостоки, изоляция');
   setOG('og:url', SITE_URL + '/');
