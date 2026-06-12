@@ -103,6 +103,34 @@ function injectDynamicStyles() {
     .mprice-pack strong { color: var(--text); font-weight: 600; }
     .mprice-unit { font-size: 13px; color: var(--muted); margin: 0 4px; }
 
+    /* ── PATCH 2: Brand filter bar ───────────── */
+    .brand-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 14px;
+      overflow: hidden;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    .brand-btn {
+      height: 30px;
+      padding: 0 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      font-size: 12px;
+      font-family: var(--fb);
+      color: var(--text);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all .15s;
+      flex-shrink: 0;
+    }
+    .brand-btn:hover { border-color: var(--dark); color: var(--dark); }
+    .brand-btn.active { background: var(--dark); color: #fff; border-color: var(--dark); }
+    .brand-count { font-size: 10px; opacity: .6; margin-left: 2px; }
+
     /* ══ МОБИЛЬНЫЙ АДАПТИВ — перекрывает любой старый style.css ══ */
 
     /* Категории: 2 колонки на мобайле */
@@ -119,6 +147,18 @@ function injectDynamicStyles() {
       }
       /* 3 фото → показываем 2 */
       .gcard-thumbs img:nth-child(3) { display: none !important; }
+
+      /* ── PATCH 1: товарная сетка — 2 колонки на мобайле ── */
+      .pgrid {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+      }
+      .pcard {
+        min-width: 0 !important;
+        width: auto !important;
+        box-sizing: border-box !important;
+      }
     }
 
     @media (max-width: 480px) {
@@ -3267,7 +3307,7 @@ function clearFacets() {
     .facet-key {
       font-size: 11px; color: var(--muted); font-weight: 600;
       text-transform: uppercase; letter-spacing: .04em;
-      white-space: nowrap; margin-right: 2px;
+      white-space: normal; margin-right: 2px;
     }
     .facet-chips { display: flex; flex-wrap: wrap; gap: 5px; }
     .facet-chip {
@@ -3625,7 +3665,16 @@ function quickAdd(prodId) {
       background: none; border: 1px solid var(--border);
       font-size: 13px; color: var(--muted); cursor: pointer;
     }
-    /* .cmp-btn — стиль в style.css */
+    .cmp-btn {
+      display: flex; align-items: center; gap: 5px;
+      padding: 0 14px; height: 46px; border-radius: 10px;
+      border: 1.5px solid var(--border); background: var(--surface);
+      color: var(--text); font-size: 13px; font-family: var(--fb);
+      cursor: pointer; white-space: nowrap; transition: .18s;
+    }
+    .cmp-btn:hover, .cmp-btn.cmp-active {
+      border-color: var(--accent, #888); color: var(--accent, #888);
+    }
     .cmp-key { text-align: left; padding: 7px 10px; color: var(--muted); font-size: 12px; background: var(--surface); }
     #compare-ovl td, #compare-ovl th { border: 1px solid var(--border); padding: 8px 12px; text-align: center; vertical-align: middle; }
     #compare-ovl tr:nth-child(even) td { background: var(--surface); }

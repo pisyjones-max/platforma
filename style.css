@@ -347,11 +347,10 @@ input, select, textarea { font-family: var(--fb); }
 .btn-sm.primary:hover { background: var(--dark-h); }
 
 /* ══ СЕТКА ТОВАРОВ ════════════════════════════════════════════════════════ */
-.pgrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 14px;
-  width: 100%;
+.pgrid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+  gap:14px;
 }
 /* Баннеры внутри сетки на всю ширину */
 .pgrid .banner-loyalty,
@@ -685,73 +684,12 @@ input, select, textarea { font-family: var(--fb); }
 .madd {
   height: 48px; border-radius: 12px;
   background: var(--accent); color: #fff; border: none;
-  font-size: 14px; font-weight: 600; margin-top: 0;
+  font-size: 14px; font-weight: 600; margin-top: auto;
   display: flex; align-items: center; justify-content: center; gap: 8px;
   transition: background .15s, transform .1s; flex-shrink: 0;
-  cursor: pointer;
 }
 .madd:hover  { background: var(--accent-h); }
 .madd:active { transform: scale(.98); }
-
-/* ── Ряд кнопок в модале товара ─────────────────────────────── */
-.modal-btn-row {
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  gap: 8px;
-  margin-top: auto;   /* прижимаем к низу minfo как раньше делал .madd */
-  flex-shrink: 0;
-}
-.modal-btn-row .madd {
-  flex: 1;
-  margin-top: 0;
-}
-.mcalc-toggle {
-  height: 48px;
-  padding: 0 14px;
-  border-radius: 12px;
-  border: 1.5px solid var(--border);
-  background: var(--surface2);
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 500;
-  font-family: var(--fb);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition: border-color .15s, background .15s;
-}
-.mcalc-toggle:hover,
-.mcalc-toggle.active {
-  border-color: var(--dark);
-  background: var(--surface);
-}
-.cmp-btn {
-  height: 48px;
-  padding: 0 14px;
-  border-radius: 12px;
-  border: 1.5px solid var(--border);
-  background: var(--surface2);
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 500;
-  font-family: var(--fb);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition: border-color .15s, background .15s;
-}
-.cmp-btn:hover,
-.cmp-btn.cmp-active {
-  border-color: var(--dark);
-  background: var(--surface);
-}
 
 .share-row { display: flex; gap: 8px; align-items: center; }
 .share-btn {
@@ -1046,62 +984,10 @@ input, select, textarea { font-family: var(--fb); }
 
   /* Модалки */
   .moverlay     { align-items: flex-end; padding: 0; }
-
-  /* Модал — flex-column на мобайле, не grid */
-  .modal {
-    display: flex !important;
-    flex-direction: column !important;
-    grid-template-columns: unset !important;
-    grid-template-rows: unset !important;
-    max-height: 95vh;
-    border-radius: 16px 16px 0 0;
-    align-self: flex-end;
-    width: 100%;
-    overflow: hidden;
-  }
-
-  /* Галерея — явная высота чтобы не схлопывалась */
-  .mgal {
-    flex: 0 0 280px;
-    height: 280px;
-    min-height: 280px;
-    max-height: 280px;
-    width: 100%;
-  }
-  .mgal-track {
-    flex: 1;
-    height: 210px;
-    min-height: 210px;
-  }
-  .mgal-slide {
-    height: 210px;
-    min-height: 210px;
-    width: 100vw;
-    max-width: 100%;
-  }
-  .mgal-slide img {
-    max-height: 210px;
-    width: auto;
-    max-width: 100%;
-    object-fit: contain;
-  }
-  .mthbs {
-    flex: 0 0 70px;
-    min-height: 70px;
-  }
-
-  /* Инфо — скроллится */
-  .minfo {
-    flex: 1 1 0;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    max-height: none;
-    padding: 20px 18px 32px;
-  }
-
-  /* Кнопки — в строку */
-  .modal-btn-row { flex-direction: row; flex-wrap: nowrap; }
-  .modal-btn-row .madd { flex: 1; min-width: 0; }
+  .modal        { grid-template-columns: 1fr; max-height: 95vh; border-radius: 16px 16px 0 0; align-self: flex-end; width: 100%; }
+  .mgal         { max-height: 260px; }
+  .mgal-slide   { min-height: 220px; }
+  .minfo        { max-height: calc(95vh - 260px); overflow-y: auto; }
 
   .comodal      { border-radius: 16px 16px 0 0; padding: 22px 18px; align-self: flex-end; }
   .loyalty-modal { border-radius: 16px 16px 0 0; align-self: flex-end; max-height: 95vh; }
@@ -1218,4 +1104,237 @@ input, select, textarea { font-family: var(--fb); }
   .gcard-thumbs img:nth-child(2) { display: none; }
   .gcard-thumbs img:nth-child(1) { flex: 1; border-radius: 0; }
   .gcard-title { font-size: 12px; }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   PLATFORMA — mobile-first responsive fix
+   Исправляет: pgrid, #app, modal, кнопки, pthumb, banner
+   НЕ трогает HTML и JS логику
+═══════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Глобальный overflow-guard ───────────────────────────── */
+html { overflow-x: hidden; }
+body { overflow-x: hidden; }
+
+/* ── 2. #app — убираем колонку сайдбара на мобайле ────────── */
+@media (max-width: 768px) {
+  #app  { grid-template-columns: 1fr !important; }
+  #main { overflow-x: hidden; width: 100%; box-sizing: border-box; }
+}
+
+/* ── 3. Товарная сетка — 2 колонки на мобайле ──────────────── */
+/* minmax(200px) на 390px даёт 1 колонку — фиксируем явно */
+@media (max-width: 768px) {
+  .pgrid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px;
+  }
+}
+@media (max-width: 380px) {
+  .pgrid { gap: 8px; }
+}
+
+/* ── 4. Карточка товара — картинка не обрезается ───────────── */
+.pthumb {
+  aspect-ratio: 1;
+  background: var(--surface2);
+  overflow: hidden;
+  position: relative;
+  /* картинка по центру, не обрезается */
+}
+.pthumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;   /* было cover — обрезало; contain — показывает целиком */
+  object-position: center;
+}
+
+@media (max-width: 768px) {
+  /* На мобайле чуть меньше aspect-ratio чтобы карточки не были огромными */
+  .pthumb { aspect-ratio: 0.9; }
+}
+@media (max-width: 480px) {
+  .pthumb { aspect-ratio: 0.85; }
+  .pinfo  { padding: 9px 10px; }
+  .addbtn { margin: 0 9px 9px; height: 34px; font-size: 12px; }
+  .ptitle { font-size: 12px; }
+}
+
+/* ── 5. Кнопки в модале — в строку, не в столбик ───────────── */
+/* .minfo — flex-column; кнопки внутри modal-btn-row должны быть flex-row */
+.modal-btn-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-top: auto;      /* прижимаем ряд кнопок к низу minfo */
+  width: 100%;
+}
+.modal-btn-row .madd {
+  flex: 1 1 160px;
+  margin-top: 0 !important;
+  width: auto !important;
+}
+.mcalc-toggle {
+  flex: 0 0 auto;
+  height: 48px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color .15s, background .15s;
+  font-family: var(--fb);
+}
+.mcalc-toggle:hover, .mcalc-toggle.active {
+  border-color: var(--dark);
+  background: var(--surface);
+}
+.cmp-btn {
+  flex: 0 0 auto;
+  height: 48px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color .15s, background .15s;
+  font-family: var(--fb);
+}
+.cmp-btn:hover, .cmp-btn.cmp-active {
+  border-color: var(--dark);
+  background: var(--surface);
+  color: var(--dark);
+}
+
+@media (max-width: 480px) {
+  /* На маленьких — кнопки "В корзину" во всю ширину, остальные рядом */
+  .modal-btn-row      { flex-wrap: wrap; }
+  .modal-btn-row .madd { flex: 1 1 100%; order: 1; }
+  .mcalc-toggle        { flex: 1; order: 2; }
+  .cmp-btn             { flex: 1; order: 3; }
+}
+
+/* ── 6. Модальное окно — flex-column на мобайле ────────────── */
+@media (max-width: 768px) {
+  .modal {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: unset !important;
+    grid-template-rows: unset !important;
+    max-height: 95dvh;
+    border-radius: 16px 16px 0 0;
+    align-self: flex-end;
+    width: 100%;
+    overflow: hidden;
+  }
+  .moverlay { align-items: flex-end; padding: 0; }
+
+  /* Галерея — явная высота */
+  .mgal {
+    flex: 0 0 260px !important;
+    height: 260px;
+    min-height: 260px;
+    max-height: 260px;
+    width: 100%;
+    overflow: hidden;
+  }
+  .mgal-track {
+    height: 190px !important;
+    flex: 0 0 190px !important;
+    min-height: 0 !important;
+  }
+  .mgal-slide {
+    height: 190px !important;
+    min-height: 190px;
+  }
+  .mgal-slide img {
+    max-height: 190px;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+  }
+  .mthbs {
+    flex: 0 0 70px !important;
+    min-height: 70px;
+  }
+
+  /* Инфо — скроллится */
+  .minfo {
+    flex: 1 1 0 !important;
+    max-height: none !important;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 20px 18px 32px;
+  }
+}
+
+/* ── 7. Зелёный баннер — не обрезается ─────────────────────── */
+.banner-loyalty {
+  box-sizing: border-box;
+  overflow: visible;
+  min-width: 0;
+}
+@media (max-width: 768px) {
+  .banner-loyalty { overflow: hidden; }
+  .bl-card-num    { font-size: 11px; }
+}
+@media (max-width:768px){
+
+  #content,
+  #main,
+  .pgrid{
+      width:100%;
+      max-width:100%;
+      overflow-x:hidden;
+      box-sizing:border-box;
+  }
+
+  .pgrid{
+      display:grid !important;
+      grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+      gap:10px !important;
+  }
+
+  .pcard{
+      min-width:0;
+      width:auto;
+  }
+}
+#facets-bar{
+    overflow:hidden;
+}
+
+#facets-bar .facet-row,
+#facets-bar .facet-values{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+}
+.hero{
+    overflow:hidden;
+}
+
+.hero h1{
+    word-break:break-word;
+}
+
+.hero-subtitle{
+    white-space:normal;
 }
