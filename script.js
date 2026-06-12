@@ -15,10 +15,11 @@ let loyaltyCard = JSON.parse(localStorage.getItem('platforma_loyalty') || 'null'
 let currentView = 'groups'; // 'groups', 'categories', 'products'
 let activeGroup = null;
 
-// Цена = прайс × 0.99 (на 1% дешевле источника)
-const PRICE_BASE   = 0.99;
-const DISCOUNT_RATE = 1.0;   // скидка отключена
-const SALE_RATE     = PRICE_BASE; // итоговый множитель 0.99
+// Цена = прайс × 0.99 (на 1% дешевле источника) — базовая цена магазина
+// Акционная цена со скидкой −7% от базовой = прайс × 0.99 × 0.93 ≈ 0.9207
+const PRICE_BASE   = 0.99;   // базовая цена относительно прайса (−1%)
+const DISCOUNT_RATE = 0.93;  // скидочный множитель (−7% от базовой)
+const SALE_RATE     = PRICE_BASE * DISCOUNT_RATE; // итоговый множитель ~0.9207
 const CASHBACK_RATE = 0.005;
 
 // ══ TOAST ══════════════════════════════════════════════════════════════════
@@ -102,34 +103,6 @@ function injectDynamicStyles() {
     .mprice-pack strong { color: var(--text); font-weight: 600; }
     .mprice-unit { font-size: 13px; color: var(--muted); margin: 0 4px; }
 
-    /* ── PATCH 2: Brand filter bar ───────────── */
-    .brand-bar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-bottom: 14px;
-      overflow: hidden;
-      max-width: 100%;
-      box-sizing: border-box;
-    }
-    .brand-btn {
-      height: 30px;
-      padding: 0 12px;
-      border-radius: 20px;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      font-size: 12px;
-      font-family: var(--fb);
-      color: var(--text);
-      cursor: pointer;
-      white-space: nowrap;
-      transition: all .15s;
-      flex-shrink: 0;
-    }
-    .brand-btn:hover { border-color: var(--dark); color: var(--dark); }
-    .brand-btn.active { background: var(--dark); color: #fff; border-color: var(--dark); }
-    .brand-count { font-size: 10px; opacity: .6; margin-left: 2px; }
-
     /* ══ МОБИЛЬНЫЙ АДАПТИВ — перекрывает любой старый style.css ══ */
 
     /* Категории: 2 колонки на мобайле */
@@ -146,18 +119,6 @@ function injectDynamicStyles() {
       }
       /* 3 фото → показываем 2 */
       .gcard-thumbs img:nth-child(3) { display: none !important; }
-
-      /* ── PATCH 1: товарная сетка — 2 колонки на мобайле ── */
-      .pgrid {
-        display: grid !important;
-        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-        gap: 10px !important;
-      }
-      .pcard {
-        min-width: 0 !important;
-        width: auto !important;
-        box-sizing: border-box !important;
-      }
     }
 
     @media (max-width: 480px) {
@@ -344,7 +305,7 @@ function renderGroups() {
       '</div>' +
       '<div class="hero-right">' +
         '<div class="hero-stat"><span>' + catalog.meta.total_products + '</span><small>товаров</small></div>' +
-        '' +
+        '<div class="hero-badge"><div class="hero-badge-val">−7%</div><div class="hero-badge-lbl">скидка</div></div>' +
       '</div>' +
     '</div>';
 
@@ -511,7 +472,7 @@ function renderCategories() {
       '</div>' +
       '<div class="hero-right">' +
         '<div class="hero-stat"><span>' + activeGroup.categories.length + '</span><small>подкатегорий</small></div>' +
-        '' +
+        '<div class="hero-badge"><div class="hero-badge-val">−7%</div><div class="hero-badge-lbl">скидка</div></div>' +
       '</div>' +
     '</div>';
 
@@ -758,7 +719,7 @@ function renderProducts() {
       '</div>' +
       '<div class="hero-right">' +
         '<div class="hero-stat"><span>' + total + '</span><small>товаров</small></div>' +
-        '' +
+        '<div class="hero-badge"><div class="hero-badge-val">−7%</div><div class="hero-badge-lbl">скидка</div></div>' +
       '</div>' +
     '</div>';
 
@@ -868,7 +829,7 @@ function renderProducts() {
       : '<div class="ph">📦</div>';
     const fp = Math.round(v.price * SALE_RATE);
     const pr = v.price > 0
-      ? '<span class="pp">' + fmt(fp) + ' ₽</span>'
+      ? '<span class="pp">' + fmt(fp) + ' ₽</span><span class="pop">' + fmt(v.price) + ' ₽</span>'
       : '<span class="pp" style="font-size:12px;color:var(--muted)">По запросу</span>';
     const vl = p.variants.length > 1
       ? '<div class="pvars"><div class="pvars-dot"></div>' + p.variants.length + ' вариантов</div>' : '';
@@ -883,7 +844,7 @@ function renderProducts() {
 
     return (
       '<div class="pcard" onclick="openProd(\'' + p.id + '\')">' +
-        (v.price > 0 ? '' : '') +
+        (v.price > 0 ? '<div class="pcard-discount-tag">−7%</div>' : '') +
         '<div class="pthumb">' + img + '</div>' +
         '<div class="pinfo">' +
           '<div class="ptitle">' + p.title + '</div>' +
@@ -1217,6 +1178,10 @@ function openProd(id) {
   renderModal();
   document.getElementById('movl').style.display = 'flex';
   document.body.style.overflow = 'hidden';
+  document.body.style.position = 'fixed';
+  document.body.style.width = '100%';
+  document.body.style.top = '-' + (window.__bodyScrollY || window.scrollY) + 'px';
+  window.__bodyScrollY = window.scrollY;
   // В URL пишем только последний сегмент слага (красиво и без mk4s.ru)
   const urlSlug = (modalProd.id || id).split('--').pop();
   setURLParam('product', urlSlug);
@@ -1224,7 +1189,13 @@ function openProd(id) {
 
 function closeMod() {
   document.getElementById('movl').style.display = 'none';
+  const scrollY = parseInt(document.body.style.top || '0') * -1;
   document.body.style.overflow = '';
+  document.body.style.position = '';
+  document.body.style.width = '';
+  document.body.style.top = '';
+  window.scrollTo(0, scrollY || window.__bodyScrollY || 0);
+  window.__bodyScrollY = 0;
   removeURLParam('product');
   _modalCalcOpen = false;
   window._calcModalProd = null;
@@ -1330,7 +1301,7 @@ function renderModal() {
   const pr = v.price > 0
     ? '<span class="mprice">' + fmt(fp) + ' ₽</span>' +
       (packUnit ? '<span class="mprice-unit">/ ' + (packUnit.includes('м²') ? 'м²' : 'шт.') + '</span>' : '') +
-      ''
+      '<span class="mop">' + fmt(v.price) + ' ₽</span><span class="m-disc-tag">−7%</span>'
     : '<span class="mprice" style="font-size:16px;color:var(--muted)">Цена по запросу</span>';
 
   const vars = p.variants.length > 1
@@ -1458,8 +1429,13 @@ function addFromModal() {
   const v = modalProd.variants[modalVar];
   const fp = Math.round(v.price * SALE_RATE);
   addToCart({ sku: v.sku, title: modalProd.title + (v.color ? ' (' + v.color + ')' : ''), price: fp, img: (v.images || [])[0] || '', qty: modalQty });
-  closeMod();
-  openCart();
+  // Меняем кнопку «В корзину» → «Перейти в корзину» (как у Озона)
+  const addBtn = document.querySelector('.madd');
+  if (addBtn) {
+    addBtn.textContent = '✓ Перейти в корзину';
+    addBtn.style.background = 'var(--success, #2d9e6b)';
+    addBtn.onclick = function() { closeMod(); openCart(); };
+  }
 }
 
 let _modalCalcOpen = false;
@@ -1664,7 +1640,9 @@ function renderCart() {
         '<div class="cimeta">Арт. ' + item.sku + '</div>' +
         '<div class="cqrow">' +
           '<button class="cqbtn" onclick="changeCartQty(' + i + ',-1)">−</button>' +
-          '<span class="cqval">' + item.qty + '</span>' +
+          '<input class="cqinput" type="number" min="1" value="' + item.qty + '" ' +
+            'onchange="setCartQty(' + i + ',this.value)" ' +
+            'oninput="setCartQty(' + i + ',this.value)">' +
           '<button class="cqbtn" onclick="changeCartQty(' + i + ',1)">+</button>' +
         '</div>' +
         '<div class="ciprice">' + (item.price > 0 ? fmt(item.price * item.qty) + ' ₽' : 'по запросу') + '</div>' +
@@ -1687,6 +1665,23 @@ function renderCart() {
 function changeCartQty(i, d) {
   cart[i].qty = Math.max(1, cart[i].qty + d);
   saveCart(); updateBadge(); renderCart();
+}
+
+function setCartQty(i, val) {
+  const n = parseInt(val);
+  if (isNaN(n) || n < 1) return;
+  cart[i].qty = n;
+  saveCart(); updateBadge();
+  // Обновляем только цену, не перерисовываем весь список (иначе теряем фокус)
+  const cards = document.querySelectorAll('.citem-card');
+  if (cards[i]) {
+    const priceEl = cards[i].querySelector('.ciprice');
+    if (priceEl) priceEl.textContent = cart[i].price > 0 ? fmt(cart[i].price * n) + ' ₽' : 'по запросу';
+  }
+  // Обновляем итог
+  const total = cart.reduce((s, c) => s + (c.price * c.qty), 0);
+  const totalEl = document.querySelector('.ctval');
+  if (totalEl) totalEl.textContent = fmt(total) + ' ₽';
 }
 
 function rmFromCart(i) { cart.splice(i, 1); saveCart(); updateBadge(); renderCart(); }
@@ -2080,7 +2075,7 @@ function runFullSearch(q) {
       ? '<img src="' + v.images[0] + '" alt="' + p.title + '" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=ph>📦</div>\'">'
       : '<div class="ph">📦</div>';
     const pr = v.price > 0
-      ? '<span class="pp">' + fmt(fp) + ' ₽</span>'
+      ? '<span class="pp">' + fmt(fp) + ' ₽</span><span class="pop">' + fmt(v.price) + ' ₽</span>'
       : '<span class="pp" style="font-size:12px;color:var(--muted)">По запросу</span>';
     return (
       '<div class="pcard" onclick="openProd(\'' + p.id + '\')">' +
@@ -3678,6 +3673,19 @@ function quickAdd(prodId) {
     #compare-ovl td, #compare-ovl th { border: 1px solid var(--border); padding: 8px 12px; text-align: center; vertical-align: middle; }
     #compare-ovl tr:nth-child(even) td { background: var(--surface); }
 
+    /* ── Cart qty input ─────────────────── */
+    .cqinput {
+      width: 44px; height: 32px; text-align: center;
+      border: 1px solid var(--border); border-radius: 6px;
+      background: var(--bg); color: var(--text);
+      font-size: 14px; font-weight: 600; font-family: var(--fb);
+      -moz-appearance: textfield;
+      padding: 0;
+    }
+    .cqinput::-webkit-outer-spin-button,
+    .cqinput::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .cqinput:focus { outline: none; border-color: var(--dark); }
+
     /* ── Wholesale hint ──────────────────── */
     #wholesale-hint {
       font-size: 12px; margin-top: 5px; min-height: 16px;
@@ -3804,7 +3812,7 @@ function updateSEOForCategory(cat) {
 
   document.title = cat.name + ' — купить в ' + SITE_NAME + ' | ' + count + ' товаров с доставкой по России';
   setMeta('description',
-    cat.name + ' в интернет-магазине ' + SITE_NAME + '. ' + count + ' товаров от ведущих производителей. Доставка по России.'
+    cat.name + ' в интернет-магазине ' + SITE_NAME + '. ' + count + ' товаров от ведущих производителей. Скидка −7% на весь каталог. Доставка по России.'
   );
   setCanonical(url);
   setOG('og:title',       cat.name + ' — ' + SITE_NAME);
@@ -3843,7 +3851,7 @@ function updateSEOForCategory(cat) {
 
 function resetSEOToHome() {
   document.title = SITE_NAME + ' — Кровельные материалы, водостоки и изоляция с доставкой по России';
-  setMeta('description', 'Интернет-магазин ' + SITE_NAME + ': металлочерепица, водостоки, утеплитель и фасадные панели. 1992 товара от ведущих брендов.');
+  setMeta('description', 'Интернет-магазин ' + SITE_NAME + ': металлочерепица, водостоки, утеплитель и фасадные панели. 1992 товара от ведущих брендов. Скидка −7% на весь каталог.');
   setCanonical(SITE_URL + '/');
   setOG('og:title', SITE_NAME + ' — Кровельные материалы, водостоки, изоляция');
   setOG('og:url', SITE_URL + '/');
