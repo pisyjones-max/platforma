@@ -1356,8 +1356,7 @@ function renderModal() {
     // Wholesale hint
     '<div id="wholesale-hint" style="font-size:12px;margin-top:4px;min-height:16px"></div>' +
     // Cross-sell (рендерим после)
-    '<div id="modal-cross-sell"></div>' +
-    '<div id="modal-reviews"></div>';
+    '<div id="modal-cross-sell"></div>';
 
   // Добавляем кнопку избранного
   const mmod = document.getElementById('mmod');
@@ -1372,7 +1371,7 @@ function renderModal() {
     }
   }
 
-  // Cross-sell + Reviews
+  // Cross-sell
   setTimeout(() => {
     const cs = document.getElementById('modal-cross-sell');
     if (cs && activeCat) cs.innerHTML = buildCrossSellHtml(activeCat.slug);
@@ -1381,9 +1380,6 @@ function renderModal() {
     // Сравнение — обновляем состояние кнопки
     const cmpBtn = document.querySelector('[data-cmp-id="' + p.id + '"]');
     if (cmpBtn && getCompare().includes(p.id)) cmpBtn.classList.add('cmp-active');
-    // Отзывы
-    const rv = document.getElementById('modal-reviews');
-    if (rv) rv.innerHTML = buildReviewsHtml(p.id, activeCat?.slug);
   }, 0);
 }
 
@@ -1768,8 +1764,10 @@ function initYaWidget() {
     if (!container) return;
 
     function startWidget() {
-      // Очищаем контейнер перед инициализацией
-      container.innerHTML = '';
+      // Если виджет уже был создан в этом контейнере — не дублируем
+      if (container.dataset.yaWidgetInit === '1') return;
+      container.dataset.yaWidgetInit = '1';
+
       window.YaDelivery.createWidget({
         containerId: 'delivery-widget',
         params: {
@@ -2629,6 +2627,11 @@ function buildFloatWidget() {
     #float-cta {
       position: fixed; bottom: 24px; right: 20px; z-index: 9999;
       display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
+      width: auto;
+      pointer-events: none;
+    }
+    #float-cta * {
+      pointer-events: auto;
     }
     .fcta-btn {
       width: 52px; height: 52px; border-radius: 50%; border: none; cursor: pointer;
@@ -2649,6 +2652,8 @@ function buildFloatWidget() {
     .fcta-sub.hidden { opacity: 0; pointer-events: none; transform: translateY(10px); }
     .fcta-label {
       display: flex; align-items: center; gap: 8px;
+      pointer-events: auto;
+      width: auto;
     }
     .fcta-tip {
       background: var(--panel, #fff); color: var(--text, #111);
@@ -3641,19 +3646,6 @@ function quickAdd(prodId) {
     #compare-ovl td, #compare-ovl th { border: 1px solid var(--border); padding: 8px 12px; text-align: center; vertical-align: middle; }
     #compare-ovl tr:nth-child(even) td { background: var(--surface); }
 
-    /* ── Cart buttons touch fix ─────────── */
-    .cqbtn {
-      min-width: 36px !important; min-height: 36px !important;
-      width: 36px !important; height: 36px !important;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
-    }
-    .crm {
-      min-width: 32px !important; min-height: 32px !important;
-      -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
-    }
     /* ── Wholesale hint ──────────────────── */
     #wholesale-hint {
       font-size: 12px; margin-top: 5px; min-height: 16px;
