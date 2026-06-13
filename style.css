@@ -742,11 +742,11 @@ input, select, textarea { font-family: var(--fb); }
 
 /* ══ КОРЗИНА ═══════════════════════════════════════════════════════════════ */
 .covl {
-  position: fixed; inset: 0; z-index: 300;
+  position: fixed; inset: 0; z-index: 600;
   background: rgba(0,0,0,.45);
 }
 .cpanel {
-  position: fixed; right: 0; top: 0; bottom: 0; z-index: 301;
+  position: fixed; right: 0; top: 0; bottom: 0; z-index: 601;
   width: min(420px, 100vw); background: var(--surface);
   display: flex; flex-direction: column;
   box-shadow: -12px 0 48px rgba(0,0,0,.18);
