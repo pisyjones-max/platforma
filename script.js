@@ -9,8 +9,8 @@ let filters = { minPrice: 0, maxPrice: 999999, color: '', brand: '', sort: 'defa
 let cart = JSON.parse(localStorage.getItem('platforma_cart') || '[]');
 let modalProd = null, modalVar = 0, modalImg = 0, modalQty = 1;
 let subMethod = 'telegram';
-let deliveryMethod = 'pvz'; // 'pvz' | 'courier'
-let selectedPVZ = null;     // { id, address }
+let deliveryMethod = 'courier';
+let selectedPVZ = null;
 let loyaltyCard = JSON.parse(localStorage.getItem('platforma_loyalty') || 'null');
 let currentView = 'groups'; // 'groups', 'categories', 'products'
 let activeGroup = null;
@@ -1695,33 +1695,16 @@ function renderCheckout() {
     ? '<div class="finp-wrap"><label>Номер карты PLATFORMA</label><input class="finp" value="' + loyaltyCard.number + '" readonly style="opacity:.6"/></div>'
     : '';
 
-  const dmActive = m => deliveryMethod === m ? ' active' : '';
-
-  // Блок доставки: виджет ПВЗ или поле адреса курьера
-  const pvzConfirm = selectedPVZ
-    ? '<div style="margin-top:8px;padding:10px 14px;background:rgba(74,173,100,.12);border:1px solid var(--success);border-radius:8px;font-size:13px;color:var(--success)" id="pvz-confirm">✅ ' + selectedPVZ.address + '</div>'
-    : '<div style="margin-top:8px;padding:10px 14px;background:var(--panel);border-radius:8px;font-size:12px;color:var(--muted)" id="pvz-confirm">Выберите точку на карте и нажмите «Продолжить»</div>';
-
   const deliveryBlock =
     '<div class="finp-wrap">' +
-      '<label>Способ доставки *</label>' +
-      '<div class="sub-methods" style="margin-top:8px">' +
-        '<div class="sub-method' + dmActive('pvz') + '" onclick="setDeliveryMethod(\'pvz\')">' +
-          '<div class="sm-icon">📦</div>Пункт выдачи' +
-        '</div>' +
-        '<div class="sub-method' + dmActive('courier') + '" onclick="setDeliveryMethod(\'courier\')">' +
-          '<div class="sm-icon">🚚</div>Курьер' +
-        '</div>' +
-      '</div>' +
+      '<label>Город *</label>' +
+      '<input class="finp" id="co-city" placeholder="Раменское / Гжель / Москва..." ' +
+        'value="' + (checkoutFormState['co-city'] || '') + '"/>' +
     '</div>' +
-    (deliveryMethod === 'pvz'
-      ? '<div class="finp-wrap">' +
-          '<label>Пункт выдачи (Яндекс Доставка) *</label>' +
-          pvzConfirm +
-          '<div id="delivery-widget" style="margin-top:10px;border-radius:10px;overflow:hidden;min-height:400px"></div>' +
-        '</div>'
-      : '<div class="finp-wrap"><label>Адрес доставки курьером *</label><input class="finp" id="co-addr" placeholder="Город, улица, дом, квартира"/></div>'
-    );
+    '<div class="finp-wrap">' +
+      '<label>Адрес доставки *</label>' +
+      '<input class="finp" id="co-addr" placeholder="Улица, дом, квартира"/>' +
+    '</div>';
 
   document.getElementById('coinner').innerHTML =
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px">' +
@@ -1750,15 +1733,13 @@ function renderCheckout() {
       '<button class="co-submit" onclick="submitOrder()">Отправить заказ</button>' +
     '</div>';
 
-  // Запускаем виджет если выбран ПВЗ
-  if (deliveryMethod === 'pvz') {
-    initYaWidget();
-  }
+  // Яндекс виджет отключён
   setTimeout(watchCheckoutPhone, 100);
 }
 
 
-function initYaWidget() {
+/* initYaWidget — отключено
+function initYaWidget_DISABLED() {
   requestAnimationFrame(() => {
     const container = document.getElementById('delivery-widget');
     if (!container) return;
@@ -1814,25 +1795,27 @@ function initYaWidget() {
   });
 }
 
+*/ // end initYaWidget disabled
+
 // Сохранённые значения полей чекаута между перерисовками
 let checkoutFormState = {};
 
 function saveCheckoutState() {
-  ['co-name','co-phone','co-email','co-addr','co-comment'].forEach(id => {
+  ['co-name','co-phone','co-email','co-city','co-addr','co-comment'].forEach(id => {
     const el = document.getElementById(id);
     if (el) checkoutFormState[id] = el.value;
   });
 }
 
 function restoreCheckoutState() {
-  ['co-name','co-phone','co-email','co-addr','co-comment'].forEach(id => {
+  ['co-name','co-phone','co-email','co-city','co-addr','co-comment'].forEach(id => {
     const el = document.getElementById(id);
     if (el && checkoutFormState[id] != null) el.value = checkoutFormState[id];
   });
 }
 
 function setSubMethod(m) { saveCheckoutState(); subMethod = m; renderCheckout(); restoreCheckoutState(); }
-function setDeliveryMethod(m) { saveCheckoutState(); deliveryMethod = m; selectedPVZ = null; renderCheckout(); restoreCheckoutState(); if (deliveryMethod === 'pvz') initYaWidget(); }
+function setDeliveryMethod(m) { saveCheckoutState(); deliveryMethod = m; renderCheckout(); restoreCheckoutState(); }
 
 async function submitOrder() {
   const name = document.getElementById('co-name')?.value.trim();
@@ -1846,18 +1829,25 @@ async function submitOrder() {
     else el?.classList.remove('error');
   });
 
-  // Валидация доставки
-  if (deliveryMethod === 'pvz' && !selectedPVZ) {
-    toast('Выберите пункт выдачи на карте', 'error');
-    valid = false;
-  }
-  if (deliveryMethod === 'courier') {
-    const addrEl = document.getElementById('co-addr');
-    if (!addrEl || !addrEl.value.trim()) {
-      addrEl?.classList.add('error');
+  // Валидация телефона — только цифры, минимум 10
+  const phoneEl = document.getElementById('co-phone');
+  if (phoneEl) {
+    const digits = (phoneEl.value || '').replace(/\D/g, '');
+    if (digits.length < 10) {
+      phoneEl.classList.add('error');
       valid = false;
-    } else addrEl.classList.remove('error');
+    } else {
+      phoneEl.classList.remove('error');
+    }
   }
+
+  // Валидация адреса
+  const cityEl = document.getElementById('co-city');
+  const addrEl = document.getElementById('co-addr');
+  if (!cityEl || !cityEl.value.trim()) { cityEl?.classList.add('error'); valid = false; }
+  else cityEl.classList.remove('error');
+  if (!addrEl || !addrEl.value.trim()) { addrEl?.classList.add('error'); valid = false; }
+  else addrEl.classList.remove('error');
 
   if (!valid) { toast('Заполните обязательные поля', 'error'); return; }
 
@@ -1868,11 +1858,10 @@ async function submitOrder() {
   const order = {
     name, phone,
     email: document.getElementById('co-email')?.value.trim() || '',
-    delivery_method: deliveryMethod,
-    address: deliveryMethod === 'pvz'
-      ? selectedPVZ.address
-      : (document.getElementById('co-addr')?.value.trim() || ''),
-    pvz_id: selectedPVZ?.id || null,
+    delivery_method: 'courier',
+    city: document.getElementById('co-city')?.value.trim() || '',
+    address: (document.getElementById('co-city')?.value.trim() || '') + ', ' + (document.getElementById('co-addr')?.value.trim() || ''),
+    pvz_id: null,
     comment: document.getElementById('co-comment')?.value.trim() || '',
     callback_requested: document.getElementById('co-callback')?.checked || false,
     loyalty_card: loyaltyCard?.number || null,
@@ -1900,9 +1889,9 @@ async function submitOrder() {
     `📞 *Телефон:* ${order.phone}`,
     order.email ? `📧 *Email:* ${order.email}` : null,
     '',
-    `🚚 *Доставка:* ${order.delivery_method === 'pvz' ? 'Пункт выдачи' : 'Курьер'}`,
+    `🚚 *Доставка:* Курьер`,
     `📍 *Адрес:* ${order.address || '—'}`,
-    order.pvz_id ? `🔖 *ID ПВЗ:* ${order.pvz_id}` : null,
+    order.city ? `🏙 *Город:* ${order.city}` : null,
     '',
     '*Состав заказа:*',
     itemsList,
@@ -1946,9 +1935,7 @@ async function submitOrder() {
     ? '<br><br><strong style="color:var(--success)">+' + fmt(cashback) + ' ₽ кэшбэк зачислен на карту PLATFORMA</strong>'
     : '';
 
-  const deliveryInfo = deliveryMethod === 'pvz'
-    ? '<br>Доставка в ПВЗ: ' + selectedPVZ.address
-    : '';
+  const deliveryInfo = order.address ? '<br>Адрес доставки: ' + order.address : '';
 
   const callbackNote = order.callback_requested
     ? '<br>Мы перезвоним вам для подтверждения.'
@@ -2612,8 +2599,8 @@ function injectProductSchema(product) {
 // ══ FLOATING CONTACT WIDGET ════════════════════════════════════════════════
 // Конфиг: замени номер телефона и ссылку WA на свои
 const CONTACT_CFG = {
-  phone:     '+78001234567',          // номер для звонка и WA
-  wa:        'https://wa.me/78001234567', // ссылка WhatsApp (можно добавить ?text=...)
+  phone:     '+79332033005',          // номер для звонка и WA
+  wa:        'https://wa.me/79332033005', // ссылка WhatsApp (можно добавить ?text=...)
   tg:        'https://t.me/platforma_support', // Telegram менеджера
   workHours: '9:00–20:00',
 };
@@ -2627,11 +2614,6 @@ function buildFloatWidget() {
     #float-cta {
       position: fixed; bottom: 24px; right: 20px; z-index: 9999;
       display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
-      width: auto;
-      pointer-events: none;
-    }
-    #float-cta * {
-      pointer-events: auto;
     }
     .fcta-btn {
       width: 52px; height: 52px; border-radius: 50%; border: none; cursor: pointer;
@@ -2652,8 +2634,6 @@ function buildFloatWidget() {
     .fcta-sub.hidden { opacity: 0; pointer-events: none; transform: translateY(10px); }
     .fcta-label {
       display: flex; align-items: center; gap: 8px;
-      pointer-events: auto;
-      width: auto;
     }
     .fcta-tip {
       background: var(--panel, #fff); color: var(--text, #111);
@@ -2940,8 +2920,27 @@ function watchCheckoutPhone() {
   const el = document.getElementById('co-phone');
   if (!el || el.dataset.abWatched) return;
   el.dataset.abWatched = '1';
-  el.addEventListener('input', () => {
-    if (el.value.trim().length > 5) saveAbandonedCart();
+
+  // Автоформатирование: +7 (999) 999-99-99
+  el.addEventListener('input', function() {
+    let v = this.value.replace(/\D/g, '');
+    if (v.startsWith('8')) v = '7' + v.slice(1);
+    if (!v.startsWith('7') && v.length > 0) v = '7' + v;
+    v = v.slice(0, 11);
+    let out = '';
+    if (v.length > 0)  out = '+7';
+    if (v.length > 1)  out += ' (' + v.slice(1, 4);
+    if (v.length >= 4) out += ') ' + v.slice(4, 7);
+    if (v.length >= 7) out += '-' + v.slice(7, 9);
+    if (v.length >= 9) out += '-' + v.slice(9, 11);
+    this.value = out;
+    if (v.length > 5) saveAbandonedCart();
+  });
+
+  // При вводе убираем ошибку если телефон валидный
+  el.addEventListener('input', function() {
+    const digits = this.value.replace(/\D/g, '');
+    if (digits.length >= 10) this.classList.remove('error');
   });
 }
 
