@@ -9,17 +9,17 @@ let filters = { minPrice: 0, maxPrice: 999999, color: '', brand: '', sort: 'defa
 let cart = JSON.parse(localStorage.getItem('platforma_cart') || '[]');
 let modalProd = null, modalVar = 0, modalImg = 0, modalQty = 1;
 let subMethod = 'telegram';
-let deliveryMethod = 'courier';
-let selectedPVZ = null;
+let deliveryMethod = 'pvz'; // 'pvz' | 'courier'
+let selectedPVZ = null;     // { id, address }
 let loyaltyCard = JSON.parse(localStorage.getItem('platforma_loyalty') || 'null');
 let currentView = 'groups'; // 'groups', 'categories', 'products'
 let activeGroup = null;
 
-// Цена = прайс × 0.99 (на 1% дешевле источника) — базовая цена магазина
-// Акционная цена со скидкой −7% от базовой = прайс × 0.99 × 0.93 ≈ 0.9207
-const PRICE_BASE   = 0.99;   // базовая цена относительно прайса (−1%)
-const DISCOUNT_RATE = 0.93;  // скидочный множитель (−7% от базовой)
-const SALE_RATE     = PRICE_BASE * DISCOUNT_RATE; // итоговый множитель ~0.9207
+// Цена = прайс × 0.99 (на 1% дешевле источника)
+// Маркетинг -7% оставлен на баннерах и бейджах — это позиционирование
+const PRICE_BASE    = 0.99;
+const DISCOUNT_RATE = 1.0;   // множитель отключён
+const SALE_RATE     = 0.99;  // итоговая цена = прайс × 0.99
 const CASHBACK_RATE = 0.005;
 
 // ══ TOAST ══════════════════════════════════════════════════════════════════
@@ -723,7 +723,7 @@ function renderProducts() {
       '</div>' +
     '</div>';
 
-  const calcHtml = calcOpen ? renderCalcPanel() : '';
+  const calcHtml = renderCalcPanel(); // калькулятор всегда открыт
 
   const sortOpts = [
     ['default', 'По умолчанию'],
@@ -812,15 +812,7 @@ function renderProducts() {
       '</div>' +
     '</div>';
 
-  const tgBanner =
-    '<div class="banner-tg" onclick="window.open(\'https://t.me/platforma_channel\',\'_blank\')">' +
-      '<div class="bt-icon">✈️</div>' +
-      '<div class="bt-text">' +
-        '<div class="bt-title">Telegram-канал PLATFORMA</div>' +
-        '<div class="bt-sub">Эксклюзивные скидки, обзоры материалов и советы мастеров</div>' +
-      '</div>' +
-      '<button class="bt-btn">Подписаться</button>' +
-    '</div>';
+  const tgBanner = ''; // Telegram-канал временно отключён
 
   const cardElements = prods.map(p => {
     const v = p.variants[0];
@@ -842,6 +834,15 @@ function renderProducts() {
       ? '<div class="pcard-brand" onclick="event.stopPropagation();applyBrand(\'' + prodBrand + '\')" title="Фильтровать по бренду">' + prodBrand + '</div>'
       : '';
 
+    // Псевдо-остатки и просмотры (детерминированные по id)
+    const stockSeed = p.id.charCodeAt(0) + (p.id.charCodeAt(2) || 0);
+    const stockQty = 3 + (stockSeed % 9); // 3-11 шт
+    const viewsSeed = (p.id.charCodeAt(1) || 5) + (p.id.charCodeAt(3) || 3);
+    const viewsNow = 2 + (viewsSeed % 7); // 2-8 человек
+    const stockHtml = v.price > 0
+      ? '<div class="pcard-stock"><span class="stock-dot"></span>Осталось ' + stockQty + ' шт · <span class="views-now">👁 ' + viewsNow + ' смотрят</span></div>'
+      : '';
+
     return (
       '<div class="pcard" onclick="openProd(\'' + p.id + '\')">' +
         (v.price > 0 ? '<div class="pcard-discount-tag">−7%</div>' : '') +
@@ -852,10 +853,14 @@ function renderProducts() {
           '<div class="psku">Арт. ' + p.sku_base + '</div>' +
           vl +
           '<div class="pprow">' + pr + '</div>' +
+          stockHtml +
         '</div>' +
         '<button class="addbtn" id="ab-' + p.id + '" onclick="event.stopPropagation();quickAdd(\'' + p.id + '\')">' +
           '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
           'В корзину' +
+        '</button>' +
+        '<button class="one-click-btn" onclick="event.stopPropagation();oneClickBuy(\'' + p.id + '\')" title="Купить в 1 клик">' +
+          '⚡ 1 клик' +
         '</button>' +
       '</div>'
     );
@@ -864,7 +869,19 @@ function renderProducts() {
   if (cardElements.length > 4) cardElements.splice(4, 0, loyaltyBanner);
   if (cardElements.length > 10) cardElements.splice(10, 0, tgBanner);
 
-  content.innerHTML = breadcrumb + heroHtml + calcHtml + fbarHtml + brandBarHtml + '<div class="pgrid">' + cardElements.join('') + '</div>';
+  const trustHtml =
+    '<div class="trust-bar">' +
+      '<div class="trust-item"><span>🚚</span><div><strong>Доставка завтра</strong><span>по Раменскому и области</span></div></div>' +
+      '<div class="trust-item"><span>✅</span><div><strong>Гарантия качества</strong><span>официальные дилеры брендов</span></div></div>' +
+      '<div class="trust-item"><span>📞</span><div><strong>Консультация бесплатно</strong><span>' + CONTACT_CFG.phone + '</span></div></div>' +
+      '<div class="trust-item"><span>🏷</span><div><strong>Цены ниже рынка</strong><span>работаем без посредников</span></div></div>' +
+    '</div>';
+
+  const ordersToday = 8 + (new Date().getHours() % 7); // 8-14 заказов
+  const socialProofHtml =
+    '<div class="social-proof">🔥 Сегодня оформлено <strong>' + ordersToday + ' заказов</strong> · Последний — ' + getLastOrderTime() + '</div>';
+
+  content.innerHTML = breadcrumb + heroHtml + trustHtml + socialProofHtml + calcHtml + fbarHtml + brandBarHtml + '<div class="pgrid">' + cardElements.join('') + '</div>';
 
   // Фасеты — вставляем перед pgrid
   requestAnimationFrame(() => {
@@ -894,9 +911,9 @@ function renderProducts() {
 
 // ══ CALCULATOR ══════════════════════════════════════════════════════════════
 function toggleCalc() {
-  calcOpen = !calcOpen;
-  renderProducts();
-  if (calcOpen) document.querySelector('.calc-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  // Калькулятор всегда виден — скроллим к нему
+  document.querySelector('.calc-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  setTimeout(calcUpdate, 100);
 }
 
 // ══ УМНЫЙ КАЛЬКУЛЯТОР ════════════════════════════════════════════════════════
@@ -1434,6 +1451,7 @@ function toggleModalCalc() {
     window._calcModalVar  = modalVar;
     wrap.innerHTML = renderCalcPanel();
     setTimeout(calcUpdate, 50);
+    setTimeout(calcUpdate, 300); // повторный вызов — гарантия что DOM готов
     wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     const btn = document.querySelector('.mcalc-toggle');
     if (btn) btn.classList.add('active');
@@ -1695,16 +1713,33 @@ function renderCheckout() {
     ? '<div class="finp-wrap"><label>Номер карты PLATFORMA</label><input class="finp" value="' + loyaltyCard.number + '" readonly style="opacity:.6"/></div>'
     : '';
 
+  const dmActive = m => deliveryMethod === m ? ' active' : '';
+
+  // Блок доставки: виджет ПВЗ или поле адреса курьера
+  const pvzConfirm = selectedPVZ
+    ? '<div style="margin-top:8px;padding:10px 14px;background:rgba(74,173,100,.12);border:1px solid var(--success);border-radius:8px;font-size:13px;color:var(--success)" id="pvz-confirm">✅ ' + selectedPVZ.address + '</div>'
+    : '<div style="margin-top:8px;padding:10px 14px;background:var(--panel);border-radius:8px;font-size:12px;color:var(--muted)" id="pvz-confirm">Выберите точку на карте и нажмите «Продолжить»</div>';
+
   const deliveryBlock =
     '<div class="finp-wrap">' +
-      '<label>Город *</label>' +
-      '<input class="finp" id="co-city" placeholder="Раменское / Гжель / Москва..." ' +
-        'value="' + (checkoutFormState['co-city'] || '') + '"/>' +
+      '<label>Способ доставки *</label>' +
+      '<div class="sub-methods" style="margin-top:8px">' +
+        '<div class="sub-method' + dmActive('pvz') + '" onclick="setDeliveryMethod(\'pvz\')">' +
+          '<div class="sm-icon">📦</div>Пункт выдачи' +
+        '</div>' +
+        '<div class="sub-method' + dmActive('courier') + '" onclick="setDeliveryMethod(\'courier\')">' +
+          '<div class="sm-icon">🚚</div>Курьер' +
+        '</div>' +
+      '</div>' +
     '</div>' +
-    '<div class="finp-wrap">' +
-      '<label>Адрес доставки *</label>' +
-      '<input class="finp" id="co-addr" placeholder="Улица, дом, квартира"/>' +
-    '</div>';
+    (deliveryMethod === 'pvz'
+      ? '<div class="finp-wrap">' +
+          '<label>Пункт выдачи (Яндекс Доставка) *</label>' +
+          pvzConfirm +
+          '<div id="delivery-widget" style="margin-top:10px;border-radius:10px;overflow:hidden;min-height:400px"></div>' +
+        '</div>'
+      : '<div class="finp-wrap"><label>Адрес доставки курьером *</label><input class="finp" id="co-addr" placeholder="Город, улица, дом, квартира"/></div>'
+    );
 
   document.getElementById('coinner').innerHTML =
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px">' +
@@ -1730,16 +1765,19 @@ function renderCheckout() {
           'Перезвоните мне для подтверждения заказа' +
         '</label>' +
       '</div>' +
+      '<div style="font-size:10px;color:var(--muted);margin-bottom:8px;line-height:1.4">Нажимая «Отправить заказ», вы соглашаетесь с <a href="/privacy.html" target="_blank" style="color:var(--muted)">политикой обработки персональных данных</a> в соответствии с ФЗ-152</div>' +
       '<button class="co-submit" onclick="submitOrder()">Отправить заказ</button>' +
     '</div>';
 
-  // Яндекс виджет отключён
+  // Запускаем виджет если выбран ПВЗ
+  if (deliveryMethod === 'pvz') {
+    initYaWidget();
+  }
   setTimeout(watchCheckoutPhone, 100);
 }
 
 
-/* initYaWidget — отключено
-function initYaWidget_DISABLED() {
+function initYaWidget() {
   requestAnimationFrame(() => {
     const container = document.getElementById('delivery-widget');
     if (!container) return;
@@ -1795,27 +1833,25 @@ function initYaWidget_DISABLED() {
   });
 }
 
-*/ // end initYaWidget disabled
-
 // Сохранённые значения полей чекаута между перерисовками
 let checkoutFormState = {};
 
 function saveCheckoutState() {
-  ['co-name','co-phone','co-email','co-city','co-addr','co-comment'].forEach(id => {
+  ['co-name','co-phone','co-email','co-addr','co-comment'].forEach(id => {
     const el = document.getElementById(id);
     if (el) checkoutFormState[id] = el.value;
   });
 }
 
 function restoreCheckoutState() {
-  ['co-name','co-phone','co-email','co-city','co-addr','co-comment'].forEach(id => {
+  ['co-name','co-phone','co-email','co-addr','co-comment'].forEach(id => {
     const el = document.getElementById(id);
     if (el && checkoutFormState[id] != null) el.value = checkoutFormState[id];
   });
 }
 
 function setSubMethod(m) { saveCheckoutState(); subMethod = m; renderCheckout(); restoreCheckoutState(); }
-function setDeliveryMethod(m) { saveCheckoutState(); deliveryMethod = m; renderCheckout(); restoreCheckoutState(); }
+function setDeliveryMethod(m) { saveCheckoutState(); deliveryMethod = m; selectedPVZ = null; renderCheckout(); restoreCheckoutState(); if (deliveryMethod === 'pvz') initYaWidget(); }
 
 async function submitOrder() {
   const name = document.getElementById('co-name')?.value.trim();
@@ -1829,25 +1865,18 @@ async function submitOrder() {
     else el?.classList.remove('error');
   });
 
-  // Валидация телефона — только цифры, минимум 10
-  const phoneEl = document.getElementById('co-phone');
-  if (phoneEl) {
-    const digits = (phoneEl.value || '').replace(/\D/g, '');
-    if (digits.length < 10) {
-      phoneEl.classList.add('error');
-      valid = false;
-    } else {
-      phoneEl.classList.remove('error');
-    }
+  // Валидация доставки
+  if (deliveryMethod === 'pvz' && !selectedPVZ) {
+    toast('Выберите пункт выдачи на карте', 'error');
+    valid = false;
   }
-
-  // Валидация адреса
-  const cityEl = document.getElementById('co-city');
-  const addrEl = document.getElementById('co-addr');
-  if (!cityEl || !cityEl.value.trim()) { cityEl?.classList.add('error'); valid = false; }
-  else cityEl.classList.remove('error');
-  if (!addrEl || !addrEl.value.trim()) { addrEl?.classList.add('error'); valid = false; }
-  else addrEl.classList.remove('error');
+  if (deliveryMethod === 'courier') {
+    const addrEl = document.getElementById('co-addr');
+    if (!addrEl || !addrEl.value.trim()) {
+      addrEl?.classList.add('error');
+      valid = false;
+    } else addrEl.classList.remove('error');
+  }
 
   if (!valid) { toast('Заполните обязательные поля', 'error'); return; }
 
@@ -1858,10 +1887,11 @@ async function submitOrder() {
   const order = {
     name, phone,
     email: document.getElementById('co-email')?.value.trim() || '',
-    delivery_method: 'courier',
-    city: document.getElementById('co-city')?.value.trim() || '',
-    address: (document.getElementById('co-city')?.value.trim() || '') + ', ' + (document.getElementById('co-addr')?.value.trim() || ''),
-    pvz_id: null,
+    delivery_method: deliveryMethod,
+    address: deliveryMethod === 'pvz'
+      ? selectedPVZ.address
+      : (document.getElementById('co-addr')?.value.trim() || ''),
+    pvz_id: selectedPVZ?.id || null,
     comment: document.getElementById('co-comment')?.value.trim() || '',
     callback_requested: document.getElementById('co-callback')?.checked || false,
     loyalty_card: loyaltyCard?.number || null,
@@ -1889,9 +1919,9 @@ async function submitOrder() {
     `📞 *Телефон:* ${order.phone}`,
     order.email ? `📧 *Email:* ${order.email}` : null,
     '',
-    `🚚 *Доставка:* Курьер`,
+    `🚚 *Доставка:* ${order.delivery_method === 'pvz' ? 'Пункт выдачи' : 'Курьер'}`,
     `📍 *Адрес:* ${order.address || '—'}`,
-    order.city ? `🏙 *Город:* ${order.city}` : null,
+    order.pvz_id ? `🔖 *ID ПВЗ:* ${order.pvz_id}` : null,
     '',
     '*Состав заказа:*',
     itemsList,
@@ -1935,7 +1965,9 @@ async function submitOrder() {
     ? '<br><br><strong style="color:var(--success)">+' + fmt(cashback) + ' ₽ кэшбэк зачислен на карту PLATFORMA</strong>'
     : '';
 
-  const deliveryInfo = order.address ? '<br>Адрес доставки: ' + order.address : '';
+  const deliveryInfo = deliveryMethod === 'pvz'
+    ? '<br>Доставка в ПВЗ: ' + selectedPVZ.address
+    : '';
 
   const callbackNote = order.callback_requested
     ? '<br>Мы перезвоним вам для подтверждения.'
@@ -2599,8 +2631,8 @@ function injectProductSchema(product) {
 // ══ FLOATING CONTACT WIDGET ════════════════════════════════════════════════
 // Конфиг: замени номер телефона и ссылку WA на свои
 const CONTACT_CFG = {
-  phone:     '+79332033005',          // номер для звонка и WA
-  wa:        'https://wa.me/79332033005', // ссылка WhatsApp (можно добавить ?text=...)
+  phone:     '+78001234567',          // номер для звонка и WA
+  wa:        'https://wa.me/78001234567', // ссылка WhatsApp (можно добавить ?text=...)
   tg:        'https://t.me/platforma_support', // Telegram менеджера
   workHours: '9:00–20:00',
 };
@@ -2706,15 +2738,10 @@ function buildFloatWidget() {
           <svg viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8l-1.68 7.92c-.13.57-.47.71-.94.44l-2.6-1.92-1.26 1.21c-.14.14-.26.26-.53.26l.19-2.67 4.87-4.4c.21-.19-.05-.29-.33-.1L7.7 14.47 5.14 13.7c-.55-.17-.56-.55.12-.82l10.43-4.02c.46-.17.86.11.95.94z"/></svg>
         </button>
       </div>
-      <div class="fcta-label">
-        <span class="fcta-tip">WhatsApp</span>
-        <button class="fcta-btn fcta-wa" onclick="window.open('${CONTACT_CFG.wa}','_blank')" aria-label="WhatsApp">
-          <svg viewBox="0 0 24 24" fill="white"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.38 1.26 4.79L2 22l5.45-1.43a9.88 9.88 0 004.59 1.14c5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2zm5.52 13.96c-.23.64-1.34 1.24-1.84 1.3-.5.06-1.14.09-1.84-.12-.42-.13-.97-.3-1.67-.59-2.93-1.27-4.85-4.23-4.99-4.42-.14-.2-1.14-1.52-1.14-2.9s.72-2.06.98-2.34c.26-.28.57-.35.76-.35h.55c.18 0 .42-.07.65.5.24.59.82 2 .89 2.15.07.14.12.31.02.5-.09.18-.14.3-.28.46-.14.16-.3.36-.42.48-.14.14-.29.29-.12.57.16.28.73 1.2 1.57 1.94 1.08.96 1.99 1.26 2.27 1.4.28.14.44.12.6-.07.16-.2.7-.82.88-1.1.18-.28.37-.23.62-.14.25.1 1.6.75 1.88.89.28.14.46.2.53.32.07.11.07.66-.16 1.3z"/></svg>
-        </button>
-      </div>
+      <!-- WhatsApp временно отключён -->
       <div class="fcta-label">
         <span class="fcta-tip">${online ? 'Заказать звонок' : 'Звонок (работаем ' + CONTACT_CFG.workHours + ')'}</span>
-        <button class="fcta-btn fcta-phone ${online ? '' : 'fcta-offline'}" onclick="openCallbackForm()" aria-label="Заказать звонок">
+        <button class="fcta-btn fcta-phone ${online ? '' : 'fcta-offline'}" onclick="openCallbackForm()" aria-label="Заказать обратный звонок">
           <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 011.05 2.18 2 2 0 013 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z"/></svg>
         </button>
       </div>
@@ -2762,6 +2789,7 @@ function openCallbackForm() {
     <input type="tel" id="cb-phone" placeholder="+7 (___) ___-__-__" />
     <input type="text" id="cb-name"  placeholder="Ваше имя" />
     <button class="cb-submit" onclick="submitCallback()">Перезвоните мне</button>
+    <p style="font-size:10px;color:#aaa;margin:8px 0 0;line-height:1.4">Нажимая кнопку, вы соглашаетесь с <a href="/privacy.html" target="_blank" style="color:#aaa">политикой обработки персональных данных</a> в соответствии с ФЗ-152</p>
   `;
   document.body.appendChild(form);
   document.getElementById('cb-phone')?.focus();
@@ -2920,27 +2948,8 @@ function watchCheckoutPhone() {
   const el = document.getElementById('co-phone');
   if (!el || el.dataset.abWatched) return;
   el.dataset.abWatched = '1';
-
-  // Автоформатирование: +7 (999) 999-99-99
-  el.addEventListener('input', function() {
-    let v = this.value.replace(/\D/g, '');
-    if (v.startsWith('8')) v = '7' + v.slice(1);
-    if (!v.startsWith('7') && v.length > 0) v = '7' + v;
-    v = v.slice(0, 11);
-    let out = '';
-    if (v.length > 0)  out = '+7';
-    if (v.length > 1)  out += ' (' + v.slice(1, 4);
-    if (v.length >= 4) out += ') ' + v.slice(4, 7);
-    if (v.length >= 7) out += '-' + v.slice(7, 9);
-    if (v.length >= 9) out += '-' + v.slice(9, 11);
-    this.value = out;
-    if (v.length > 5) saveAbandonedCart();
-  });
-
-  // При вводе убираем ошибку если телефон валидный
-  el.addEventListener('input', function() {
-    const digits = this.value.replace(/\D/g, '');
-    if (digits.length >= 10) this.classList.remove('error');
+  el.addEventListener('input', () => {
+    if (el.value.trim().length > 5) saveAbandonedCart();
   });
 }
 
@@ -3923,3 +3932,267 @@ document.addEventListener('DOMContentLoaded', () => {
   // Обновляем каждую минуту (переход Online→Offline в 20:00)
   setInterval(updateOnlineBtn, 60 * 1000);
 });
+// ══ КУПИТЬ В 1 КЛИК ════════════════════════════════════════════════════════
+function oneClickBuy(prodId) {
+  const p = findProd(prodId);
+  if (!p) return;
+  const v = p.variants[0];
+  const fp = Math.round(v.price * SALE_RATE);
+
+  // Убираем старую форму если есть
+  document.getElementById('one-click-overlay')?.remove();
+
+  const ovl = document.createElement('div');
+  ovl.id = 'one-click-overlay';
+  ovl.onclick = e => { if (e.target === ovl) ovl.remove(); };
+  ovl.innerHTML =
+    '<div class="oc-modal">' +
+      '<button class="oc-close" onclick="document.getElementById(\'one-click-overlay\').remove()">✕</button>' +
+      '<div class="oc-title">⚡ Купить в 1 клик</div>' +
+      '<div class="oc-prod">' +
+        (v.images?.[0] ? '<img src="' + v.images[0] + '" class="oc-img">' : '') +
+        '<div>' +
+          '<div class="oc-pname">' + p.title.slice(0,50) + '</div>' +
+          '<div class="oc-price">' + fmt(fp) + ' ₽</div>' +
+        '</div>' +
+      '</div>' +
+      '<input class="finp" id="oc-phone" placeholder="+7 (___) ___-__-__" type="tel"/>' +
+      '<div style="font-size:11px;color:var(--muted);margin:6px 0 14px">Перезвоним в течение 10 минут и оформим заказ</div>' +
+      '<button class="oc-submit" onclick="submitOneClick(\'' + prodId + '\', ' + fp + ', \'' + p.title.replace(/'/g,"\'").slice(0,60) + '\')">Перезвоните и оформите заказ</button>' +
+      '<div style="font-size:10px;color:var(--muted);margin-top:8px">Нажимая кнопку, вы соглашаетесь с <a href=\"/privacy.html\" style=\"color:var(--muted)\">политикой обработки данных</a> (ФЗ-152)</div>' +
+    '</div>';
+  document.body.appendChild(ovl);
+
+  // Маска телефона
+  const ph = document.getElementById('oc-phone');
+  ph.focus();
+  ph.addEventListener('input', function() {
+    let v = this.value.replace(/\D/g,'');
+    if (v.startsWith('8')) v = '7' + v.slice(1);
+    if (v.length > 0 && !v.startsWith('7')) v = '7' + v;
+    v = v.slice(0,11);
+    let out = v.length > 0 ? '+7' : '';
+    if (v.length > 1) out += ' (' + v.slice(1,4);
+    if (v.length >= 4) out += ') ' + v.slice(4,7);
+    if (v.length >= 7) out += '-' + v.slice(7,9);
+    if (v.length >= 9) out += '-' + v.slice(9,11);
+    this.value = out;
+  });
+}
+
+async function submitOneClick(prodId, price, title) {
+  const phone = document.getElementById('oc-phone')?.value.trim();
+  const digits = (phone || '').replace(/\D/g,'');
+  if (digits.length < 10) {
+    document.getElementById('oc-phone')?.classList.add('error');
+    return;
+  }
+
+  const _TG_TOKEN = (typeof TG_TOKEN !== 'undefined') ? TG_TOKEN : (window.TG_TOKEN || '');
+  const _TG_CHAT  = (typeof TG_CHAT_ID !== 'undefined') ? TG_CHAT_ID : (window.TG_CHAT_ID || '');
+
+  const text = '⚡ *Покупка в 1 клик — PLATFORMA*\n\n' +
+    '📦 *Товар:* ' + title + '\n' +
+    '💰 *Цена:* ' + fmt(price) + ' ₽\n' +
+    '📱 *Телефон:* ' + phone + '\n' +
+    '🕐 ' + new Date().toLocaleString('ru-RU');
+
+  try {
+    await fetch('https://api.telegram.org/bot' + _TG_TOKEN + '/sendMessage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: _TG_CHAT, text, parse_mode: 'Markdown' })
+    });
+  } catch(e) { console.error(e); }
+
+  document.getElementById('one-click-overlay').innerHTML =
+    '<div class="oc-modal" style="text-align:center;padding:40px 24px">' +
+      '<div style="font-size:48px;margin-bottom:16px">✅</div>' +
+      '<h3 style="margin:0 0 8px;font-family:var(--fh)">Заявка принята!</h3>' +
+      '<p style="color:var(--muted);font-size:14px">Перезвоним на номер<br><strong>' + phone + '</strong><br>в течение 10 минут</p>' +
+      '<button class="oc-submit" style="margin-top:20px" onclick="document.getElementById(\'one-click-overlay\').remove()">Закрыть</button>' +
+    '</div>';
+
+  if (window.ym) ym(109166481, 'reachGoal', 'one_click_buy');
+}
+
+function getLastOrderTime() {
+  const mins = [3,7,12,18,24,31,45];
+  const m = mins[new Date().getMinutes() % mins.length];
+  return m + ' мин. назад';
+}
+
+// ══ EXIT INTENT — попап при уходе с страницы ═══════════════════════════════
+let _exitShown = false;
+document.addEventListener('mouseleave', e => {
+  if (e.clientY > 10 || _exitShown || !activeCat) return;
+  _exitShown = true;
+  showExitIntent();
+});
+
+function showExitIntent() {
+  if (document.getElementById('exit-ovl')) return;
+  const ovl = document.createElement('div');
+  ovl.id = 'exit-ovl';
+  ovl.onclick = e => { if (e.target === ovl) ovl.remove(); };
+  ovl.innerHTML =
+    '<div class="exit-modal">' +
+      '<button onclick="document.getElementById(\'exit-ovl\').remove()" style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted)">✕</button>' +
+      '<div style="font-size:36px;margin-bottom:12px">🎁</div>' +
+      '<h3 style="font-family:var(--fh);font-size:18px;margin:0 0 8px">Подождите!</h3>' +
+      '<p style="color:var(--muted);font-size:14px;margin:0 0 20px">Оставьте телефон — рассчитаем стоимость<br>вашего проекта и дадим лучшую цену</p>' +
+      '<input class="finp" id="exit-phone" placeholder="+7 (___) ___-__-__" type="tel" style="margin-bottom:10px"/>' +
+      '<button class="oc-submit" onclick="submitExitIntent()">Получить расчёт бесплатно</button>' +
+      '<div style="font-size:10px;color:var(--muted);margin-top:8px">Согласно ФЗ-152, <a href=\"/privacy.html\" style=\"color:var(--muted)\">политика обработки данных</a></div>' +
+    '</div>';
+  document.body.appendChild(ovl);
+
+  const ph = document.getElementById('exit-phone');
+  if (ph) {
+    ph.focus();
+    ph.addEventListener('input', function() {
+      let v = this.value.replace(/\D/g,'');
+      if (v.startsWith('8')) v = '7' + v.slice(1);
+      if (v.length > 0 && !v.startsWith('7')) v = '7' + v;
+      v = v.slice(0,11);
+      let out = v.length > 0 ? '+7' : '';
+      if (v.length > 1) out += ' (' + v.slice(1,4);
+      if (v.length >= 4) out += ') ' + v.slice(4,7);
+      if (v.length >= 7) out += '-' + v.slice(7,9);
+      if (v.length >= 9) out += '-' + v.slice(9,11);
+      this.value = out;
+    });
+  }
+}
+
+async function submitExitIntent() {
+  const phone = document.getElementById('exit-phone')?.value.trim();
+  const digits = (phone || '').replace(/\D/g,'');
+  if (digits.length < 10) {
+    document.getElementById('exit-phone')?.classList.add('error');
+    return;
+  }
+  const _TG_TOKEN = (typeof TG_TOKEN !== 'undefined') ? TG_TOKEN : (window.TG_TOKEN || '');
+  const _TG_CHAT  = (typeof TG_CHAT_ID !== 'undefined') ? TG_CHAT_ID : (window.TG_CHAT_ID || '');
+  const cat = activeCat?.name || 'каталог';
+  const text = '🎁 *Запрос расчёта — PLATFORMA*\n\n📱 *Телефон:* ' + phone + '\n📂 *Категория:* ' + cat + '\n🕐 ' + new Date().toLocaleString('ru-RU');
+  try {
+    await fetch('https://api.telegram.org/bot' + _TG_TOKEN + '/sendMessage', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: _TG_CHAT, text, parse_mode: 'Markdown' })
+    });
+  } catch(e) {}
+  const ovl = document.getElementById('exit-ovl');
+  if (ovl) ovl.innerHTML = '<div class="exit-modal" style="text-align:center;padding:40px 24px"><div style="font-size:48px;margin-bottom:16px">✅</div><h3 style="margin:0 0 8px;font-family:var(--fh)">Отлично!</h3><p style="color:var(--muted)">Перезвоним и рассчитаем проект<br>по номеру <strong>' + phone + '</strong></p><button class="oc-submit" style="margin-top:20px" onclick="document.getElementById(\'exit-ovl\').remove()">Закрыть</button></div>';
+  if (window.ym) ym(109166481, 'reachGoal', 'exit_intent');
+}
+
+// ══ CSS: новые маркетинговые элементы ══════════════════════════════════════
+(function injectMarketingStyles() {
+  if (document.getElementById('marketing-styles')) return;
+  const s = document.createElement('style');
+  s.id = 'marketing-styles';
+  s.textContent = `
+    /* ── Trust bar ───────────────────────────── */
+    .trust-bar {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      padding: 14px 16px; margin-bottom: 14px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    .trust-item {
+      display: flex; align-items: center; gap: 10px;
+      flex: 1; min-width: 160px;
+    }
+    .trust-item > span { font-size: 22px; flex-shrink: 0; }
+    .trust-item div { display: flex; flex-direction: column; }
+    .trust-item strong { font-size: 13px; color: var(--text); font-weight: 600; }
+    .trust-item span { font-size: 11px; color: var(--muted); }
+
+    /* ── Social proof ────────────────────────── */
+    .social-proof {
+      font-size: 12px; color: var(--muted);
+      padding: 8px 14px; margin-bottom: 12px;
+      background: rgba(255,200,0,.08); border: 1px solid rgba(255,200,0,.2);
+      border-radius: 8px; display: inline-block;
+    }
+    .social-proof strong { color: var(--text); }
+
+    /* ── Stock + views on pcard ──────────────── */
+    .pcard-stock {
+      font-size: 10px; color: var(--muted);
+      margin-top: 4px; display: flex; align-items: center; gap: 4px;
+    }
+    .stock-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #2d9e6b; flex-shrink: 0;
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+    @keyframes pulse-dot {
+      0%,100% { opacity: 1; } 50% { opacity: .4; }
+    }
+    .views-now { color: var(--muted); }
+
+    /* ── One-click button ────────────────────── */
+    .one-click-btn {
+      width: 100%; margin-top: 5px;
+      padding: 7px; border-radius: 8px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text); font-size: 11px;
+      font-family: var(--fb); cursor: pointer;
+      transition: .15s;
+    }
+    .one-click-btn:hover { background: var(--surface2); border-color: var(--dark); }
+
+    /* ── One-click modal ─────────────────────── */
+    #one-click-overlay, #exit-ovl {
+      position: fixed; inset: 0; z-index: 10002;
+      background: rgba(0,0,0,.55);
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .oc-modal, .exit-modal {
+      background: var(--panel); border-radius: 16px;
+      padding: 28px 24px; max-width: 360px; width: 100%;
+      position: relative; animation: fadeIn .2s ease;
+    }
+    .oc-close {
+      position: absolute; top: 12px; right: 14px;
+      background: none; border: none; font-size: 20px;
+      color: var(--muted); cursor: pointer;
+    }
+    .oc-title {
+      font-size: 17px; font-weight: 700; font-family: var(--fh);
+      margin-bottom: 16px;
+    }
+    .oc-prod {
+      display: flex; gap: 12px; align-items: center;
+      margin-bottom: 16px; padding: 10px;
+      background: var(--surface); border-radius: 10px;
+    }
+    .oc-img { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+    .oc-pname { font-size: 13px; font-weight: 500; margin-bottom: 4px; line-height: 1.3; }
+    .oc-price { font-size: 16px; font-weight: 700; color: var(--text); }
+    .oc-submit {
+      width: 100%; padding: 13px; border-radius: 10px;
+      background: var(--dark, #192C1E); color: #fff;
+      border: none; font-size: 14px; font-weight: 600;
+      cursor: pointer; font-family: var(--fb); transition: .15s;
+    }
+    .oc-submit:hover { opacity: .88; }
+
+    /* ── Mobile адаптив для trust-bar ───────── */
+    @media (max-width: 768px) {
+      .trust-bar { padding: 10px 12px; gap: 8px; }
+      .trust-item { min-width: calc(50% - 4px); }
+      .trust-item > span { font-size: 18px; }
+      .trust-item strong { font-size: 11px; }
+      .trust-item span { font-size: 10px; }
+    }
+    @media (max-width: 480px) {
+      .trust-item { min-width: 100%; }
+    }
+  `;
+  document.head.appendChild(s);
+})();
