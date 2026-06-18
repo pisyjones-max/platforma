@@ -684,6 +684,186 @@ function updatePriceFilter(v, max) {
 }
 function resetFilters() { filters = { minPrice: 0, maxPrice: 999999, color: '', brand: '', sort: 'default' }; filterOpen = false; renderProducts(); }
 
+// ══ CALCULATOR ══════════════════════════════════════════════════════════════
+function toggleCalc() {
+  document.querySelector('.calc-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  calcUpdate('page');
+}
+
+function getCalcType() {
+  const slug = activeCat?.slug || '';
+  const name = (activeCat?.name || '').toLowerCase();
+  const title = (window._calcModalProd?.title || '').toLowerCase();
+  const combined = slug + ' ' + name + ' ' + title;
+
+  if (/vodostok|водосто|gutter|жёлоб|желоб|труб/.test(combined))  return 'gutter';
+  if (/uteplitel|изоляц|утеплит|rockwool|isover|izolyats/.test(combined)) return 'insulation';
+  if (/samorez|саморез|крепёж|fastener|krepezh/.test(combined))   return 'screws';
+  if (/sayding|сайдинг|fasad|фасад|panel|панел/.test(combined))   return 'siding';
+  return 'roofing';
+}
+
+function getUnitFromVariant(v) {
+  const name = (v?.sku_name || v?.name || '').toLowerCase();
+  const pack = v?.pack_quantity;
+  if (name.includes('м²') || name.includes('m2')) return 'm2';
+  if (name.includes(' м') && !name.includes('мм')) return 'm';
+  if (pack && pack > 1) return 'pack';
+  return 'pcs';
+}
+
+function renderCalcPanel(ctx = 'page') {
+  const type = getCalcType();
+  const prod = ctx === 'modal' ? (window._calcModalProd || modalProd) : activeCat?.products[0];
+  const variant = prod?.variants?.[window._calcModalVar || 0] || prod?.variants?.[0];
+  const packQty = variant?.pack_quantity || 1;
+
+  const titles = {
+    roofing:    '🏗️ Калькулятор кровли',
+    gutter:     '🌧️ Калькулятор водостока',
+    insulation: '🧱 Калькулятор утеплителя',
+    screws:     '🔩 Калькулятор саморезов',
+    siding:     '🏠 Калькулятор фасада / сайдинга',
+  };
+
+  let fields = '';
+  let resultHint = '';
+
+  if (type === 'roofing') {
+    fields =
+      '<div class="calc-inp-wrap"><label>Длина ската, м</label><input class="calc-inp" type="number" id="c-len-' + ctx + '" value="10" min="1" step="0.1" oninput="calcUpdate(\'' + ctx + '\')"/></div>' +
+      '<div class="calc-inp-wrap"><label>Ширина ската, м</label><input class="calc-inp" type="number" id="c-wid-' + ctx + '" value="6" min="1" step="0.1" oninput="calcUpdate(\'' + ctx + '\')"/></div>' +
+      '<div class="calc-inp-wrap"><label>Количество скатов</label><input class="calc-inp" type="number" id="c-slopes-' + ctx + '" value="2" min="1" max="8" oninput="calcUpdate(\'' + ctx + '\')"/></div>' +
+      '<div class="calc-inp-wrap"><label>Запас, %</label><input class="calc-inp" type="number" id="c-margin-' + ctx + '" value="10" min="0" max="30" oninput="calcUpdate(\'' + ctx + '\')"/></div>';
+    resultHint = 'Площадь: <strong id="c-area-' + ctx + '">—</strong> &nbsp;·&nbsp; Нужно: <strong id="c-sheets-' + ctx + '">—</strong>';
+  } else if (type === 'gutter') {
+    fields =
+      '<div class="calc-inp-wrap"><label>Периметр кровли, м</label><input class="calc-inp" type="number" id="c-perim-' + ctx + '" value="40" min="1" step="0.5" oninput="calcUpdate(\'' + ctx + '\')"/></div>' +
+      '<div class="calc-inp-wrap"><label>Длина элемента, м</label><input class="calc-inp" type="number" id="c-gutter-len-' + ctx + '" value="3" min="1" step="0.5" oninput="calcUpdate(\'' + ctx + '\')"/></div>' +
+      '<div class="calc-inp-wrap"><label>Запас, %</label><input class="calc-inp" type="number" id="c-margin-' + ctx + '" value="5" min="0" max="20" oninput="calcUpdate(\'' + ctx + '\')"/></div>';
+    resultHint = 'Погонных метров: <strong id="c-area-' + ctx + '">—</strong> &nbsp;·&nbsp; Элементов: <strong id="c-sheets-' + ctx + '">—</strong>';
+  } else if (type === 'insulation') {
+    fields =
+      '<div class="calc-inp-wrap"><label>Площадь, м²</label><input class="calc-inp" type="number" id="c-area-inp-' + ctx + '" value="60" min="1" step="1" oninput="calcUpdate(\'' + ctx + '\')"/></div>' +
+      '<div class="calc-inp-wrap"><label>Слоёв утеплителя</label><input class="calc-inp" type="number" id="c-layers-' + ctx + '" value="1" min="1" max="4" oninput="calcUpdate(\'' + ctx + '\')"/></div>' +
+      '<div class="calc-inp-wrap"><label>Плит в упаковке</label><input class="calc-inp" type="number" id="c-pack-' + ctx + '" value="' + packQty + '" min="1" oninput="calcUpdate(\'' + ctx + '\')"/></div>' +
+      '<div class="calc-inp-wrap"><label>Запас, %</label><input class="calc-inp" type="number" id="c-margin-' + ctx + '" value="5" min="0" max="20" oninput="calcUpdate(\'' + ctx + '\')"/></div>';
+    resultHint = 'Площадь: <strong id="c-area-' + ctx + '">—</strong> &nbsp;·&nbsp; Упаковок: <strong id="c-sheets-' + ctx + '">—</strong>';
+  } else if (type === 'screws') {
+    fields =
+      '<div class="calc-inp-wrap"><label>Площадь кровли / фасада, м²</label><input class="calc-inp" type="number" id="c-area-inp-' + ctx + '" value="80" min="1" step="1" oninput="calcUpdate(\'' + ctx + '\')"/></div>' +
+      '<div class="calc-inp-wrap"><label>Расход, шт/м²</label><input class="calc-inp" type="number" id="c-per-m2-' + ctx + '" value="8" min="1" step="1" oninput="calcUpdate(\'' + ctx + '\')"/></div>' +
+      '<div class="calc-inp-wrap"><label>Штук в упаковке</label><input class="calc-inp" type="number" id="c-pack-' + ctx + '" value="' + (packQty > 1 ? packQty : 250) + '" min="1" oninput="calcUpdate(\'' + ctx + '\')"/></div>';
+    resultHint = 'Штук: <strong id="c-area-' + ctx + '">—</strong> &nbsp;·&nbsp; Упаковок: <strong id="c-sheets-' + ctx + '">—</strong>';
+  } else if (type === 'siding') {
+    fields =
+      '<div class="calc-inp-wrap"><label>Высота стены, м</label><input class="calc-inp" type="number" id="c-wall-h-' + ctx + '" value="3" min="1" step="0.1" oninput="calcUpdate(\'' + ctx + '\')"/></div>' +
+      '<div class="calc-inp-wrap"><label>Периметр здания, м</label><input class="calc-inp" type="number" id="c-perim-' + ctx + '" value="40" min="1" step="0.5" oninput="calcUpdate(\'' + ctx + '\')"/></div>' +
+      '<div class="calc-inp-wrap"><label>Проёмы (окна+двери), м²</label><input class="calc-inp" type="number" id="c-openings-' + ctx + '" value="15" min="0" step="0.5" oninput="calcUpdate(\'' + ctx + '\')"/></div>' +
+      '<div class="calc-inp-wrap"><label>Запас, %</label><input class="calc-inp" type="number" id="c-margin-' + ctx + '" value="10" min="0" max="30" oninput="calcUpdate(\'' + ctx + '\')"/></div>';
+    resultHint = 'Площадь: <strong id="c-area-' + ctx + '">—</strong> &nbsp;·&nbsp; Панелей: <strong id="c-sheets-' + ctx + '">—</strong>';
+  }
+
+  return (
+    '<div class="calc-panel">' +
+      '<h3>' + (titles[type] || '🧮 Калькулятор') + '</h3>' +
+      '<div class="calc-grid">' + fields + '</div>' +
+      '<div class="calc-result">' +
+        '<div class="cres-text">' + resultHint + '</div>' +
+        '<button class="calc-addbtn" id="c-btn-' + ctx + '" onclick="calcAddToCart(\'' + ctx + '\')">+ Добавить в корзину</button>' +
+      '</div>' +
+    '</div>'
+  );
+}
+
+function calcUpdate(ctx = 'page') {
+  const type = getCalcType();
+  const prod = ctx === 'modal' ? (window._calcModalProd || modalProd) : activeCat?.products[0];
+  const variant = prod?.variants?.[window._calcModalVar || 0] || prod?.variants?.[0];
+
+  let area = 0, qty = 0;
+
+  if (type === 'roofing') {
+    const len    = parseFloat(document.getElementById('c-len-' + ctx)?.value)    || 10;
+    const wid    = parseFloat(document.getElementById('c-wid-' + ctx)?.value)    || 6;
+    const slopes = parseInt(document.getElementById('c-slopes-' + ctx)?.value)   || 2;
+    const margin = parseFloat(document.getElementById('c-margin-' + ctx)?.value) || 10;
+    area = len * wid * slopes * (1 + margin / 100);
+    const unitM2 = (variant?.pack_quantity > 1 ? variant.pack_quantity : null)
+      || parseFloat((variant?.sku_name || '').match(/(\d+[.,]\d+)\s*м²/)?.[1]) || 0.9;
+    qty = Math.ceil(area / unitM2);
+
+  } else if (type === 'gutter') {
+    const perim     = parseFloat(document.getElementById('c-perim-' + ctx)?.value)      || 40;
+    const elemLen   = parseFloat(document.getElementById('c-gutter-len-' + ctx)?.value) || 3;
+    const margin    = parseFloat(document.getElementById('c-margin-' + ctx)?.value)     || 5;
+    area = perim * (1 + margin / 100);
+    qty = Math.ceil(area / elemLen);
+
+  } else if (type === 'insulation') {
+    const areaInp = parseFloat(document.getElementById('c-area-inp-' + ctx)?.value) || 60;
+    const layers  = parseInt(document.getElementById('c-layers-' + ctx)?.value)     || 1;
+    const packSz  = parseFloat(document.getElementById('c-pack-' + ctx)?.value)     || (variant?.pack_quantity || 1);
+    const margin  = parseFloat(document.getElementById('c-margin-' + ctx)?.value)   || 5;
+    area = areaInp * layers * (1 + margin / 100);
+    const plateM2 = parseFloat((variant?.sku_name || '').match(/(\d+[.,]\d+)\s*м²/)?.[1]) || 0.48;
+    const platesNeeded = Math.ceil(area / plateM2);
+    qty = Math.ceil(platesNeeded / packSz);
+
+  } else if (type === 'screws') {
+    const areaInp = parseFloat(document.getElementById('c-area-inp-' + ctx)?.value) || 80;
+    const perM2   = parseFloat(document.getElementById('c-per-m2-' + ctx)?.value)   || 8;
+    const packSz  = parseFloat(document.getElementById('c-pack-' + ctx)?.value)     || 250;
+    area = areaInp * perM2;
+    qty = Math.ceil(area / packSz);
+
+  } else if (type === 'siding') {
+    const wallH    = parseFloat(document.getElementById('c-wall-h-' + ctx)?.value)    || 3;
+    const perim    = parseFloat(document.getElementById('c-perim-' + ctx)?.value)     || 40;
+    const openings = parseFloat(document.getElementById('c-openings-' + ctx)?.value)  || 15;
+    const margin   = parseFloat(document.getElementById('c-margin-' + ctx)?.value)    || 10;
+    area = (wallH * perim - openings) * (1 + margin / 100);
+    const panelM2 = parseFloat((variant?.sku_name || '').match(/(\d+[.,]\d+)\s*м²/)?.[1]) || 0.72;
+    qty = Math.ceil(area / panelM2);
+  }
+
+  const aEl = document.getElementById('c-area-' + ctx);
+  const sEl = document.getElementById('c-sheets-' + ctx);
+  const unitLabel = type === 'screws' ? ' шт.' : (type === 'gutter' ? ' м' : ' м²');
+
+  if (aEl) aEl.textContent = (type === 'screws' ? Math.round(area) : area.toFixed(1)) + unitLabel;
+  if (sEl) sEl.textContent = qty + (type === 'insulation' || type === 'screws' ? ' уп.' : ' шт.');
+
+  // Сохраняем значения отдельно для модалки и страницы
+  if (ctx === 'page') {
+    window._calcSheetsPage = qty;
+  } else {
+    window._calcSheetsModal = qty;
+  }
+}
+
+function calcAddToCart(ctx = 'page') {
+  calcUpdate(ctx);
+  const p = ctx === 'modal' ? (window._calcModalProd || modalProd) : activeCat?.products[0];
+  const varIdx = (ctx === 'modal' ? window._calcModalVar : 0) || 0;
+  if (!p) { toast('Выберите категорию товаров для расчёта', 'error'); return; }
+
+  const v = p.variants[varIdx] || p.variants[0];
+  const fp = Math.round(v.price * SALE_RATE);
+  const sheets = (ctx === 'modal' ? window._calcSheetsModal : window._calcSheetsPage) || 1;
+  const varLabel = v.sku_name || v.color || '';
+  const titleLabel = p.title + (varLabel ? ' (' + varLabel + ')' : '') + ' × ' + sheets + ' шт.';
+
+  addToCart({ sku: v.sku, title: titleLabel, price: fp, img: (v.images || [])[0] || '', qty: sheets });
+
+  const b = document.getElementById('c-btn-' + ctx);
+  if (b) {
+    b.textContent = '✓ Добавлено!';
+    b.style.background = 'var(--success)';
+    setTimeout(() => { b.textContent = '+ Добавить в корзину'; b.style.background = ''; }, 1800);
+  }
+}
+
 // ══ RENDER PRODUCTS ════════════════════════════════════════════════════════
 function renderProducts() {
   const content = document.getElementById('content');
@@ -723,7 +903,7 @@ function renderProducts() {
       '</div>' +
     '</div>';
 
-  const calcHtml = renderCalcPanel(); // калькулятор всегда открыт
+  const calcHtml = renderCalcPanel('page'); // калькулятор всегда открыт
 
   const sortOpts = [
     ['default', 'По умолчанию'],
@@ -787,6 +967,7 @@ function renderProducts() {
 
   if (!prods.length) {
     content.innerHTML = breadcrumb + heroHtml + calcHtml + fbarHtml + brandBarHtml + '<div class="loading">Ничего не найдено</div>';
+    calcUpdate('page');
     return;
   }
 
@@ -883,6 +1064,9 @@ function renderProducts() {
 
   content.innerHTML = breadcrumb + heroHtml + trustHtml + socialProofHtml + calcHtml + fbarHtml + brandBarHtml + '<div class="pgrid">' + cardElements.join('') + '</div>';
 
+  // Инициализируем калькулятор страницы сразу после добавления в DOM
+  calcUpdate('page');
+
   // Фасеты — вставляем перед pgrid
   requestAnimationFrame(() => {
     const pgrid = content.querySelector('.pgrid');
@@ -908,209 +1092,6 @@ function renderProducts() {
     }
   });
 }
-
-// ══ CALCULATOR ══════════════════════════════════════════════════════════════
-function toggleCalc() {
-  // Калькулятор всегда виден — скроллим к нему
-  document.querySelector('.calc-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  setTimeout(calcUpdate, 100);
-}
-
-// ══ УМНЫЙ КАЛЬКУЛЯТОР ════════════════════════════════════════════════════════
-// Определяем тип расчёта по слагу категории или названию товара
-function getCalcType() {
-  const slug = activeCat?.slug || '';
-  const name = (activeCat?.name || '').toLowerCase();
-  const title = (window._calcModalProd?.title || '').toLowerCase();
-  const combined = slug + ' ' + name + ' ' + title;
-
-  if (/vodostok|водосто|gutter|жёлоб|желоб|труб/.test(combined))  return 'gutter';
-  if (/uteplitel|изоляц|утеплит|rockwool|isover|izolyats/.test(combined)) return 'insulation';
-  if (/samorez|саморез|крепёж|fastener|krepezh/.test(combined))   return 'screws';
-  if (/sayding|сайдинг|fasad|фасад|panel|панел/.test(combined))   return 'siding';
-  // По умолчанию — кровля (листовые материалы)
-  return 'roofing';
-}
-
-// Единица товара из варианта: м², м, шт, уп
-function getUnitFromVariant(v) {
-  const name = (v?.sku_name || v?.name || '').toLowerCase();
-  const pack = v?.pack_quantity;
-  if (name.includes('м²') || name.includes('m2')) return 'm2';
-  if (name.includes(' м') && !name.includes('мм')) return 'm';
-  if (pack && pack > 1) return 'pack';
-  return 'pcs';
-}
-
-function renderCalcPanel() {
-  const type = getCalcType();
-  const prod = window._calcModalProd || modalProd || activeCat?.products[0];
-  const variant = prod?.variants?.[window._calcModalVar || 0] || prod?.variants?.[0];
-  const packQty = variant?.pack_quantity || 1;
-
-  const titles = {
-    roofing:    '🏗️ Калькулятор кровли',
-    gutter:     '🌧️ Калькулятор водостока',
-    insulation: '🧱 Калькулятор утеплителя',
-    screws:     '🔩 Калькулятор саморезов',
-    siding:     '🏠 Калькулятор фасада / сайдинга',
-  };
-
-  let fields = '';
-  let resultHint = '';
-
-  if (type === 'roofing') {
-    fields =
-      '<div class="calc-inp-wrap"><label>Длина ската, м</label>' +
-        '<input class="calc-inp" type="number" id="c-len" value="10" min="1" step="0.1" oninput="calcUpdate()"/></div>' +
-      '<div class="calc-inp-wrap"><label>Ширина ската, м</label>' +
-        '<input class="calc-inp" type="number" id="c-wid" value="6" min="1" step="0.1" oninput="calcUpdate()"/></div>' +
-      '<div class="calc-inp-wrap"><label>Количество скатов</label>' +
-        '<input class="calc-inp" type="number" id="c-slopes" value="2" min="1" max="8" oninput="calcUpdate()"/></div>' +
-      '<div class="calc-inp-wrap"><label>Запас, %</label>' +
-        '<input class="calc-inp" type="number" id="c-margin" value="10" min="0" max="30" oninput="calcUpdate()"/></div>';
-    resultHint = 'Площадь: <strong id="c-area">—</strong> &nbsp;·&nbsp; Нужно: <strong id="c-sheets">—</strong>';
-
-  } else if (type === 'gutter') {
-    fields =
-      '<div class="calc-inp-wrap"><label>Периметр кровли, м</label>' +
-        '<input class="calc-inp" type="number" id="c-perim" value="40" min="1" step="0.5" oninput="calcUpdate()"/></div>' +
-      '<div class="calc-inp-wrap"><label>Длина элемента, м</label>' +
-        '<input class="calc-inp" type="number" id="c-gutter-len" value="3" min="1" step="0.5" oninput="calcUpdate()"/></div>' +
-      '<div class="calc-inp-wrap"><label>Запас, %</label>' +
-        '<input class="calc-inp" type="number" id="c-margin" value="5" min="0" max="20" oninput="calcUpdate()"/></div>';
-    resultHint = 'Погонных метров: <strong id="c-area">—</strong> &nbsp;·&nbsp; Элементов: <strong id="c-sheets">—</strong>';
-
-  } else if (type === 'insulation') {
-    fields =
-      '<div class="calc-inp-wrap"><label>Площадь, м²</label>' +
-        '<input class="calc-inp" type="number" id="c-area-inp" value="60" min="1" step="1" oninput="calcUpdate()"/></div>' +
-      '<div class="calc-inp-wrap"><label>Слоёв утеплителя</label>' +
-        '<input class="calc-inp" type="number" id="c-layers" value="1" min="1" max="4" oninput="calcUpdate()"/></div>' +
-      '<div class="calc-inp-wrap"><label>Плит в упаковке</label>' +
-        '<input class="calc-inp" type="number" id="c-pack" value="' + packQty + '" min="1" oninput="calcUpdate()"/></div>' +
-      '<div class="calc-inp-wrap"><label>Запас, %</label>' +
-        '<input class="calc-inp" type="number" id="c-margin" value="5" min="0" max="20" oninput="calcUpdate()"/></div>';
-    resultHint = 'Площадь: <strong id="c-area">—</strong> &nbsp;·&nbsp; Упаковок: <strong id="c-sheets">—</strong>';
-
-  } else if (type === 'screws') {
-    fields =
-      '<div class="calc-inp-wrap"><label>Площадь кровли / фасада, м²</label>' +
-        '<input class="calc-inp" type="number" id="c-area-inp" value="80" min="1" step="1" oninput="calcUpdate()"/></div>' +
-      '<div class="calc-inp-wrap"><label>Расход, шт/м²</label>' +
-        '<input class="calc-inp" type="number" id="c-per-m2" value="8" min="1" step="1" oninput="calcUpdate()"/></div>' +
-      '<div class="calc-inp-wrap"><label>Штук в упаковке</label>' +
-        '<input class="calc-inp" type="number" id="c-pack" value="' + (packQty > 1 ? packQty : 250) + '" min="1" oninput="calcUpdate()"/></div>';
-    resultHint = 'Штук: <strong id="c-area">—</strong> &nbsp;·&nbsp; Упаковок: <strong id="c-sheets">—</strong>';
-
-  } else if (type === 'siding') {
-    fields =
-      '<div class="calc-inp-wrap"><label>Высота стены, м</label>' +
-        '<input class="calc-inp" type="number" id="c-wall-h" value="3" min="1" step="0.1" oninput="calcUpdate()"/></div>' +
-      '<div class="calc-inp-wrap"><label>Периметр здания, м</label>' +
-        '<input class="calc-inp" type="number" id="c-perim" value="40" min="1" step="0.5" oninput="calcUpdate()"/></div>' +
-      '<div class="calc-inp-wrap"><label>Проёмы (окна+двери), м²</label>' +
-        '<input class="calc-inp" type="number" id="c-openings" value="15" min="0" step="0.5" oninput="calcUpdate()"/></div>' +
-      '<div class="calc-inp-wrap"><label>Запас, %</label>' +
-        '<input class="calc-inp" type="number" id="c-margin" value="10" min="0" max="30" oninput="calcUpdate()"/></div>';
-    resultHint = 'Площадь: <strong id="c-area">—</strong> &nbsp;·&nbsp; Панелей: <strong id="c-sheets">—</strong>';
-  }
-
-  return (
-    '<div class="calc-panel">' +
-      '<h3>' + (titles[type] || '🧮 Калькулятор') + '</h3>' +
-      '<div class="calc-grid">' + fields + '</div>' +
-      '<div class="calc-result">' +
-        '<div class="cres-text">' + resultHint + '</div>' +
-        '<button class="calc-addbtn" onclick="calcAddToCart()">+ Добавить в корзину</button>' +
-      '</div>' +
-    '</div>'
-  );
-}
-
-function calcUpdate() {
-  const type = getCalcType();
-  const prod = window._calcModalProd || modalProd || activeCat?.products[0];
-  const variant = prod?.variants?.[window._calcModalVar || 0] || prod?.variants?.[0];
-
-  let area = 0, qty = 0;
-
-  if (type === 'roofing') {
-    const len    = parseFloat(document.getElementById('c-len')?.value)    || 10;
-    const wid    = parseFloat(document.getElementById('c-wid')?.value)    || 6;
-    const slopes = parseInt(document.getElementById('c-slopes')?.value)   || 2;
-    const margin = parseFloat(document.getElementById('c-margin')?.value) || 10;
-    area = len * wid * slopes * (1 + margin / 100);
-    // Площадь одного листа/единицы
-    const unitM2 = (variant?.pack_quantity > 1 ? variant.pack_quantity : null)
-      || parseFloat((variant?.sku_name || '').match(/(\d+[.,]\d+)\s*м²/)?.[1]) || 0.9;
-    qty = Math.ceil(area / unitM2);
-
-  } else if (type === 'gutter') {
-    const perim     = parseFloat(document.getElementById('c-perim')?.value)      || 40;
-    const elemLen   = parseFloat(document.getElementById('c-gutter-len')?.value) || 3;
-    const margin    = parseFloat(document.getElementById('c-margin')?.value)      || 5;
-    area = perim * (1 + margin / 100);
-    qty = Math.ceil(area / elemLen);
-
-  } else if (type === 'insulation') {
-    const areaInp = parseFloat(document.getElementById('c-area-inp')?.value) || 60;
-    const layers  = parseInt(document.getElementById('c-layers')?.value)      || 1;
-    const packSz  = parseFloat(document.getElementById('c-pack')?.value)       || (variant?.pack_quantity || 1);
-    const margin  = parseFloat(document.getElementById('c-margin')?.value)     || 5;
-    area = areaInp * layers * (1 + margin / 100);
-    // Площадь одной плиты из sku_name, иначе 0.48 м² (типичная 600×800)
-    const plateM2 = parseFloat((variant?.sku_name || '').match(/(\d+[.,]\d+)\s*м²/)?.[1]) || 0.48;
-    const platesNeeded = Math.ceil(area / plateM2);
-    qty = Math.ceil(platesNeeded / packSz);
-
-  } else if (type === 'screws') {
-    const areaInp = parseFloat(document.getElementById('c-area-inp')?.value) || 80;
-    const perM2   = parseFloat(document.getElementById('c-per-m2')?.value)   || 8;
-    const packSz  = parseFloat(document.getElementById('c-pack')?.value)      || 250;
-    area = areaInp * perM2;  // total screws
-    qty = Math.ceil(area / packSz);
-
-  } else if (type === 'siding') {
-    const wallH    = parseFloat(document.getElementById('c-wall-h')?.value)    || 3;
-    const perim    = parseFloat(document.getElementById('c-perim')?.value)     || 40;
-    const openings = parseFloat(document.getElementById('c-openings')?.value)  || 15;
-    const margin   = parseFloat(document.getElementById('c-margin')?.value)    || 10;
-    area = (wallH * perim - openings) * (1 + margin / 100);
-    // Площадь одной панели
-    const panelM2 = parseFloat((variant?.sku_name || '').match(/(\d+[.,]\d+)\s*м²/)?.[1]) || 0.72;
-    qty = Math.ceil(area / panelM2);
-  }
-
-  const aEl = document.getElementById('c-area');
-  const sEl = document.getElementById('c-sheets');
-  const unitLabel = type === 'screws' ? ' шт.' : (type === 'gutter' ? ' м' : ' м²');
-  if (aEl) aEl.textContent = (type === 'screws' ? Math.round(area) : area.toFixed(1)) + unitLabel;
-  if (sEl) sEl.textContent = qty + (type === 'insulation' || type === 'screws' ? ' уп.' : ' шт.');
-  window._calcSheets = qty;
-  window._calcArea   = area;
-}
-
-function calcAddToCart() {
-  calcUpdate();
-  // Приоритет: товар открытый в модале → выбранный вариант → первый товар категории
-  const p = window._calcModalProd || modalProd || activeCat?.products[0];
-  const varIdx = (window._calcModalProd ? window._calcModalVar : modalVar) || 0;
-  if (!p) { toast('Выберите категорию товаров для расчёта', 'error'); return; }
-  const v = p.variants[varIdx] || p.variants[0];
-  const fp = Math.round(v.price * SALE_RATE);
-  const sheets = window._calcSheets || 1;
-  const varLabel = v.sku_name || v.color || '';
-  const titleLabel = p.title + (varLabel ? ' (' + varLabel + ')' : '') + ' × ' + sheets + ' шт.';
-  addToCart({ sku: v.sku, title: titleLabel, price: fp, img: (v.images || [])[0] || '', qty: sheets });
-  const b = document.querySelector('.calc-addbtn');
-  if (b) {
-    b.textContent = '✓ Добавлено!';
-    b.style.background = 'var(--success)';
-    setTimeout(() => { b.textContent = '+ Добавить в корзину'; b.style.background = ''; }, 1800);
-  }
-}
-setTimeout(calcUpdate, 600);
 
 // ══ PRODUCT MODAL ══════════════════════════════════════════════════════════
 function findProd(id) {
@@ -1446,12 +1427,10 @@ function toggleModalCalc() {
   const wrap = document.getElementById('modal-calc-wrap');
   if (!wrap) return;
   if (_modalCalcOpen) {
-    // Передаём текущий товар и вариант в глобальное состояние калькулятора
     window._calcModalProd = modalProd;
     window._calcModalVar  = modalVar;
-    wrap.innerHTML = renderCalcPanel();
-    setTimeout(calcUpdate, 50);
-    setTimeout(calcUpdate, 300); // повторный вызов — гарантия что DOM готов
+    wrap.innerHTML = renderCalcPanel('modal');
+    calcUpdate('modal');
     wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     const btn = document.querySelector('.mcalc-toggle');
     if (btn) btn.classList.add('active');
@@ -2738,7 +2717,6 @@ function buildFloatWidget() {
           <svg viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8l-1.68 7.92c-.13.57-.47.71-.94.44l-2.6-1.92-1.26 1.21c-.14.14-.26.26-.53.26l.19-2.67 4.87-4.4c.21-.19-.05-.29-.33-.1L7.7 14.47 5.14 13.7c-.55-.17-.56-.55.12-.82l10.43-4.02c.46-.17.86.11.95.94z"/></svg>
         </button>
       </div>
-      <!-- WhatsApp временно отключён -->
       <div class="fcta-label">
         <span class="fcta-tip">${online ? 'Заказать звонок' : 'Звонок (работаем ' + CONTACT_CFG.workHours + ')'}</span>
         <button class="fcta-btn fcta-phone ${online ? '' : 'fcta-offline'}" onclick="openCallbackForm()" aria-label="Заказать обратный звонок">
