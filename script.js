@@ -22,6 +22,49 @@ const DISCOUNT_RATE = 1.0;   // множитель отключён
 const SALE_RATE     = 0.99;  // итоговая цена = прайс × 0.99
 const CASHBACK_RATE = 0.005;
 
+// ══ TG HELPERS ═════════════════════════════════════════════════════════════
+// config.js объявляет TG_TOKEN/TG_CHAT_ID через const — они НЕ попадают в
+// window, но доступны через typeof в том же скоупе страницы.
+function getTGConfig() {
+  const token = (typeof TG_TOKEN  !== 'undefined' && TG_TOKEN)
+                ? String(TG_TOKEN)  : (window.TG_TOKEN  || '');
+  const chat  = (typeof TG_CHAT_ID !== 'undefined' && TG_CHAT_ID)
+                ? String(TG_CHAT_ID) : (window.TG_CHAT_ID || '');
+  return { token, chat };
+}
+
+// Telegram Markdown v1: экранируем _ * ` [ чтобы имена товаров не ломали разметку
+function tgEsc(s) {
+  return String(s || '').replace(/([_*`\[])/g, '\\$1');
+}
+
+async function sendTG(text) {
+  const { token, chat } = getTGConfig();
+  if (!token || !chat) {
+    console.warn('[PLATFORMA] TG config missing — token:', !!token, '| chat:', !!chat);
+    return false;
+  }
+  try {
+    const res = await fetch(
+      'https://api.telegram.org/bot' + token + '/sendMessage',
+      {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ chat_id: chat, text, parse_mode: 'Markdown' }),
+      }
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error('[PLATFORMA] TG error:', err?.description || res.status);
+    }
+    return res.ok;
+  } catch (e) {
+    console.error('[PLATFORMA] TG sendMessage failed:', e.message);
+    return false;
+  }
+}
+
+
 // ══ TOAST ══════════════════════════════════════════════════════════════════
 function toast(msg, type = 'default', duration = 2600) {
   const c = document.getElementById('toast-container');
@@ -777,70 +820,79 @@ function renderCalcPanel(ctx = 'page') {
 }
 
 function calcUpdate(ctx = 'page') {
-  const type = getCalcType();
-  const prod = ctx === 'modal' ? (window._calcModalProd || modalProd) : activeCat?.products[0];
+  // ── Guard: элементы калькулятора ещё не вставлены — ждём следующего фрейма
+  if (!document.getElementById('c-sheets-' + ctx)) {
+    requestAnimationFrame(() => calcUpdate(ctx));
+    return;
+  }
+
+  const type    = getCalcType();
+  const prod    = ctx === 'modal'
+                  ? (window._calcModalProd || modalProd)
+                  : activeCat?.products[0];
   const variant = prod?.variants?.[window._calcModalVar || 0] || prod?.variants?.[0];
 
   let area = 0, qty = 0;
 
   if (type === 'roofing') {
-    const len    = parseFloat(document.getElementById('c-len-' + ctx)?.value)    || 10;
-    const wid    = parseFloat(document.getElementById('c-wid-' + ctx)?.value)    || 6;
-    const slopes = parseInt(document.getElementById('c-slopes-' + ctx)?.value)   || 2;
+    const len    = parseFloat(document.getElementById('c-len-'    + ctx)?.value) || 10;
+    const wid    = parseFloat(document.getElementById('c-wid-'    + ctx)?.value) || 6;
+    const slopes = parseInt  (document.getElementById('c-slopes-' + ctx)?.value) || 2;
     const margin = parseFloat(document.getElementById('c-margin-' + ctx)?.value) || 10;
     area = len * wid * slopes * (1 + margin / 100);
-    const unitM2 = (variant?.pack_quantity > 1 ? variant.pack_quantity : null)
-      || parseFloat((variant?.sku_name || '').match(/(\d+[.,]\d+)\s*м²/)?.[1]) || 0.9;
+    const unitM2 = parseFloat(
+      (variant?.sku_name || '').match(/(\d+[.,]\d+)\s*м²/)?.[1]
+    ) || 0.9;
     qty = Math.ceil(area / unitM2);
 
   } else if (type === 'gutter') {
-    const perim     = parseFloat(document.getElementById('c-perim-' + ctx)?.value)      || 40;
-    const elemLen   = parseFloat(document.getElementById('c-gutter-len-' + ctx)?.value) || 3;
-    const margin    = parseFloat(document.getElementById('c-margin-' + ctx)?.value)     || 5;
+    const perim   = parseFloat(document.getElementById('c-perim-'      + ctx)?.value) || 40;
+    const elemLen = parseFloat(document.getElementById('c-gutter-len-' + ctx)?.value) || 3;
+    const margin  = parseFloat(document.getElementById('c-margin-'     + ctx)?.value) || 5;
     area = perim * (1 + margin / 100);
-    qty = Math.ceil(area / elemLen);
+    qty  = Math.ceil(area / elemLen);
 
   } else if (type === 'insulation') {
     const areaInp = parseFloat(document.getElementById('c-area-inp-' + ctx)?.value) || 60;
-    const layers  = parseInt(document.getElementById('c-layers-' + ctx)?.value)     || 1;
-    const packSz  = parseFloat(document.getElementById('c-pack-' + ctx)?.value)     || (variant?.pack_quantity || 1);
-    const margin  = parseFloat(document.getElementById('c-margin-' + ctx)?.value)   || 5;
+    const layers  = parseInt  (document.getElementById('c-layers-'   + ctx)?.value) || 1;
+    const packSz  = parseFloat(document.getElementById('c-pack-'     + ctx)?.value) || (variant?.pack_quantity || 1);
+    const margin  = parseFloat(document.getElementById('c-margin-'   + ctx)?.value) || 5;
     area = areaInp * layers * (1 + margin / 100);
-    const plateM2 = parseFloat((variant?.sku_name || '').match(/(\d+[.,]\d+)\s*м²/)?.[1]) || 0.48;
-    const platesNeeded = Math.ceil(area / plateM2);
-    qty = Math.ceil(platesNeeded / packSz);
+    const plateM2 = parseFloat(
+      (variant?.sku_name || '').match(/(\d+[.,]\d+)\s*м²/)?.[1]
+    ) || 0.48;
+    qty = Math.ceil(Math.ceil(area / plateM2) / packSz);
 
   } else if (type === 'screws') {
     const areaInp = parseFloat(document.getElementById('c-area-inp-' + ctx)?.value) || 80;
-    const perM2   = parseFloat(document.getElementById('c-per-m2-' + ctx)?.value)   || 8;
-    const packSz  = parseFloat(document.getElementById('c-pack-' + ctx)?.value)     || 250;
+    const perM2   = parseFloat(document.getElementById('c-per-m2-'  + ctx)?.value) || 8;
+    const packSz  = parseFloat(document.getElementById('c-pack-'    + ctx)?.value) || 250;
     area = areaInp * perM2;
-    qty = Math.ceil(area / packSz);
+    qty  = Math.ceil(area / packSz);
 
   } else if (type === 'siding') {
-    const wallH    = parseFloat(document.getElementById('c-wall-h-' + ctx)?.value)    || 3;
-    const perim    = parseFloat(document.getElementById('c-perim-' + ctx)?.value)     || 40;
-    const openings = parseFloat(document.getElementById('c-openings-' + ctx)?.value)  || 15;
-    const margin   = parseFloat(document.getElementById('c-margin-' + ctx)?.value)    || 10;
+    const wallH    = parseFloat(document.getElementById('c-wall-h-'   + ctx)?.value) || 3;
+    const perim    = parseFloat(document.getElementById('c-perim-'    + ctx)?.value) || 40;
+    const openings = parseFloat(document.getElementById('c-openings-' + ctx)?.value) || 15;
+    const margin   = parseFloat(document.getElementById('c-margin-'   + ctx)?.value) || 10;
     area = (wallH * perim - openings) * (1 + margin / 100);
-    const panelM2 = parseFloat((variant?.sku_name || '').match(/(\d+[.,]\d+)\s*м²/)?.[1]) || 0.72;
+    const panelM2 = parseFloat(
+      (variant?.sku_name || '').match(/(\d+[.,]\d+)\s*м²/)?.[1]
+    ) || 0.72;
     qty = Math.ceil(area / panelM2);
   }
 
-  const aEl = document.getElementById('c-area-' + ctx);
+  const aEl = document.getElementById('c-area-'   + ctx);
   const sEl = document.getElementById('c-sheets-' + ctx);
   const unitLabel = type === 'screws' ? ' шт.' : (type === 'gutter' ? ' м' : ' м²');
 
   if (aEl) aEl.textContent = (type === 'screws' ? Math.round(area) : area.toFixed(1)) + unitLabel;
   if (sEl) sEl.textContent = qty + (type === 'insulation' || type === 'screws' ? ' уп.' : ' шт.');
 
-  // Сохраняем значения отдельно для модалки и страницы
-  if (ctx === 'page') {
-    window._calcSheetsPage = qty;
-  } else {
-    window._calcSheetsModal = qty;
-  }
+  if (ctx === 'page') window._calcSheetsPage  = qty;
+  else                window._calcSheetsModal = qty;
 }
+
 
 function calcAddToCart(ctx = 'page') {
   calcUpdate(ctx);
@@ -865,16 +917,19 @@ function calcAddToCart(ctx = 'page') {
 }
 
 // ══ RENDER PRODUCTS ════════════════════════════════════════════════════════
+// ══ RENDER PRODUCTS ════════════════════════════════════════════════════════
 function renderProducts() {
   const content = document.getElementById('content');
   if (!activeCat) { content.innerHTML = '<div class="loading">Выберите категорию</div>'; return; }
-  const prods = getFilteredProducts();
-  const total = activeCat.products.length;
-  const maxP = Math.max(...(activeCat.products || []).map(p => Math.round(p.variants[0].price * SALE_RATE) || 0), 0);
-  const allColors = [...new Set((activeCat.products || []).flatMap(p => p.variants.map(v => v.color || v.sku_name || '')).filter(Boolean))];
 
-  // Собираем бренды из features['Производитель'] и из названий товаров
-  const KNOWN_BRANDS = ['Технониколь', 'Docke', 'Ranilla', 'Rockwool', 'ISOVER', 'Grand Line', 'Металл Профиль', 'Изоспан', 'Ондулин'];
+  const prods    = getFilteredProducts();
+  const total    = activeCat.products.length;
+  const maxP     = Math.max(...(activeCat.products || []).map(p => Math.round(p.variants[0].price * SALE_RATE) || 0), 0);
+  const allColors = [...new Set(
+    (activeCat.products || []).flatMap(p => p.variants.map(v => v.color || v.sku_name || '')).filter(Boolean)
+  )];
+
+  const KNOWN_BRANDS = ['Технониколь','Docke','Ranilla','Rockwool','ISOVER','Grand Line','Металл Профиль','Изоспан','Ондулин'];
   const allBrands = [...new Set(
     (activeCat.products || []).map(p => {
       if (p.features?.['Производитель']) return p.features['Производитель'];
@@ -883,14 +938,16 @@ function renderProducts() {
     }).filter(Boolean)
   )].sort((a, b) => a.localeCompare(b, 'ru'));
 
-  // Build breadcrumb
+  // ── Breadcrumb ─────────────────────────────────────────────────────────
   const groupEntry = Object.entries(catalog.groups || {}).find(([, g]) => g.categories.includes(activeCat.slug));
   let breadcrumb = '<div class="breadcrumb"><span class="bc-item bc-link" onclick="goHome()">Каталог</span>';
   if (groupEntry) {
-    breadcrumb += '<span class="bc-sep">›</span><span class="bc-item bc-link" onclick="goToGroup(\'' + groupEntry[0] + '\')">' + groupEntry[1].name + '</span>';
+    breadcrumb += '<span class="bc-sep">›</span>' +
+      '<span class="bc-item bc-link" onclick="goToGroup(\'' + groupEntry[0] + '\')">' + groupEntry[1].name + '</span>';
   }
   breadcrumb += '<span class="bc-sep">›</span><span class="bc-item bc-cur">' + activeCat.name + '</span></div>';
 
+  // ── Hero ───────────────────────────────────────────────────────────────
   const heroHtml =
     '<div class="hero">' +
       '<div>' +
@@ -903,14 +960,15 @@ function renderProducts() {
       '</div>' +
     '</div>';
 
-  const calcHtml = renderCalcPanel('page'); // калькулятор всегда открыт
+  // ── Calculator (всегда открыт) ─────────────────────────────────────────
+  const calcHtml = renderCalcPanel('page');
 
+  // ── Фильтр-бар ────────────────────────────────────────────────────────
   const sortOpts = [
-    ['default', 'По умолчанию'],
-    ['price_asc', 'Цена ↑'],
-    ['price_desc', 'Цена ↓'],
-    ['name', 'По названию']
-  ].map(([v, l]) => '<option value="' + v + '"' + (filters.sort === v ? ' selected' : '') + '>' + l + '</option>').join('');
+    ['default','По умолчанию'],['price_asc','Цена ↑'],['price_desc','Цена ↓'],['name','По названию']
+  ].map(([v, l]) =>
+    '<option value="' + v + '"' + (filters.sort === v ? ' selected' : '') + '>' + l + '</option>'
+  ).join('');
 
   const colorOpts = allColors.map(c =>
     '<option value="' + c + '"' + (filters.color === c ? ' selected' : '') + '>' + c + '</option>'
@@ -920,11 +978,11 @@ function renderProducts() {
   const rangeMax = maxP || 10000;
   const rangeVal = Math.min(filters.maxPrice, rangeMax);
 
-  // Чипы активных брендов в fbar
   const fbarHtml =
     '<div class="fbar">' +
       '<button class="fchip ' + (filterOpen ? 'active' : '') + '" onclick="toggleFilter()">' +
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>Фильтры' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">' +
+          '<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>Фильтры' +
       '</button>' +
       '<select class="sort-sel" onchange="applySort(this.value)">' + sortOpts + '</select>' +
       (filters.color ? '<button class="fchip active" onclick="clearColor()">Цвет: ' + filters.color + ' ✕</button>' : '') +
@@ -934,7 +992,8 @@ function renderProducts() {
     '<div class="fpanel ' + (filterOpen ? 'open' : '') + '">' +
       '<div class="fpanel-grid">' +
         '<div><label>Цена, ₽</label>' +
-          '<input type="range" min="0" max="' + rangeMax + '" step="100" value="' + rangeVal + '" oninput="updatePriceFilter(this.value,' + rangeMax + ')"/>' +
+          '<input type="range" min="0" max="' + rangeMax + '" step="100" value="' + rangeVal + '"' +
+            ' oninput="updatePriceFilter(this.value,' + rangeMax + ')"/>' +
           '<div class="range-vals"><span>0 ₽</span><span id="price-range-val">' + priceVal + '</span></div>' +
         '</div>' +
         '<div><label>Цвет / вариант</label>' +
@@ -947,30 +1006,45 @@ function renderProducts() {
       '</div>' +
     '</div>';
 
-  // Бренд-бар — горизонтальный ряд кнопок над карточками
+  // ── Brand bar ──────────────────────────────────────────────────────────
   const brandBarHtml = allBrands.length
     ? '<div class="brand-bar">' +
         '<button class="brand-btn' + (!filters.brand ? ' active' : '') + '" onclick="applyBrand(\'\')">Все</button>' +
         allBrands.map(b => {
           const cnt = (activeCat.products || []).filter(p => {
             const fb = (p.features?.['Производитель'] || '').toLowerCase();
-            const tb = p.title.toLowerCase();
-            return fb.includes(b.toLowerCase()) || tb.includes(b.toLowerCase());
+            return fb.includes(b.toLowerCase()) || p.title.toLowerCase().includes(b.toLowerCase());
           }).length;
           return '<button class="brand-btn' + (filters.brand === b ? ' active' : '') + '" onclick="applyBrand(\'' + b + '\')">' +
-            b + ' <span class="brand-count">' + cnt + '</span>' +
-          '</button>';
+            b + ' <span class="brand-count">' + cnt + '</span></button>';
         }).join('') +
       '</div>'
     : '';
 
-
+  // ── Пустой результат ──────────────────────────────────────────────────
   if (!prods.length) {
-    content.innerHTML = breadcrumb + heroHtml + calcHtml + fbarHtml + brandBarHtml + '<div class="loading">Ничего не найдено</div>';
-    calcUpdate('page');
+    content.innerHTML = breadcrumb + heroHtml + calcHtml + fbarHtml + brandBarHtml +
+      '<div class="loading">Ничего не найдено</div>';
+    // calcUpdate в RAF — элементы точно уже в DOM
+    requestAnimationFrame(() => calcUpdate('page'));
     return;
   }
 
+  // ── Trust bar ──────────────────────────────────────────────────────────
+  const trustHtml =
+    '<div class="trust-bar">' +
+      '<div class="trust-item"><span>🚚</span><div><strong>Доставка завтра</strong><span>по Раменскому и области</span></div></div>' +
+      '<div class="trust-item"><span>✅</span><div><strong>Гарантия качества</strong><span>официальные дилеры брендов</span></div></div>' +
+      '<div class="trust-item"><span>📞</span><div><strong>Консультация бесплатно</strong><span>' + CONTACT_CFG.phone + '</span></div></div>' +
+      '<div class="trust-item"><span>🏷</span><div><strong>Цены ниже рынка</strong><span>работаем без посредников</span></div></div>' +
+    '</div>';
+
+  const ordersToday = 8 + (new Date().getHours() % 7);
+  const socialProofHtml =
+    '<div class="social-proof">🔥 Сегодня оформлено <strong>' + ordersToday +
+    ' заказов</strong> · Последний — ' + getLastOrderTime() + '</div>';
+
+  // ── Loyalty banner (вставляется между карточками) ──────────────────────
   const loyaltyBanner =
     '<div class="banner-loyalty" onclick="openLoyaltyModal()">' +
       '<div class="bl-left">' +
@@ -993,21 +1067,23 @@ function renderProducts() {
       '</div>' +
     '</div>';
 
-  const tgBanner = ''; // Telegram-канал временно отключён
-
+  // ── Карточки товаров ───────────────────────────────────────────────────
   const cardElements = prods.map(p => {
-    const v = p.variants[0];
+    const v   = p.variants[0];
+    const fp  = Math.round(v.price * SALE_RATE);
     const img = (v.images && v.images[0])
-      ? '<img src="' + v.images[0] + '" alt="' + p.title + '" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=ph>📦</div>\'">'
+      ? '<img src="' + v.images[0] + '" alt="' + p.title + '" loading="lazy"' +
+          ' onerror="this.parentElement.innerHTML=\'<div class=ph>📦</div>\'">'
       : '<div class="ph">📦</div>';
-    const fp = Math.round(v.price * SALE_RATE);
+
     const pr = v.price > 0
       ? '<span class="pp">' + fmt(fp) + ' ₽</span><span class="pop">' + fmt(v.price) + ' ₽</span>'
       : '<span class="pp" style="font-size:12px;color:var(--muted)">По запросу</span>';
-    const vl = p.variants.length > 1
-      ? '<div class="pvars"><div class="pvars-dot"></div>' + p.variants.length + ' вариантов</div>' : '';
 
-    // Бренд под названием
+    const vl = p.variants.length > 1
+      ? '<div class="pvars"><div class="pvars-dot"></div>' + p.variants.length + ' вариантов</div>'
+      : '';
+
     const prodBrand = p.features?.['Производитель']
       || KNOWN_BRANDS.find(b => p.title.toLowerCase().includes(b.toLowerCase()))
       || null;
@@ -1015,13 +1091,13 @@ function renderProducts() {
       ? '<div class="pcard-brand" onclick="event.stopPropagation();applyBrand(\'' + prodBrand + '\')" title="Фильтровать по бренду">' + prodBrand + '</div>'
       : '';
 
-    // Псевдо-остатки и просмотры (детерминированные по id)
     const stockSeed = p.id.charCodeAt(0) + (p.id.charCodeAt(2) || 0);
-    const stockQty = 3 + (stockSeed % 9); // 3-11 шт
+    const stockQty  = 3 + (stockSeed % 9);
     const viewsSeed = (p.id.charCodeAt(1) || 5) + (p.id.charCodeAt(3) || 3);
-    const viewsNow = 2 + (viewsSeed % 7); // 2-8 человек
+    const viewsNow  = 2 + (viewsSeed % 7);
     const stockHtml = v.price > 0
-      ? '<div class="pcard-stock"><span class="stock-dot"></span>Осталось ' + stockQty + ' шт · <span class="views-now">👁 ' + viewsNow + ' смотрят</span></div>'
+      ? '<div class="pcard-stock"><span class="stock-dot"></span>Осталось ' + stockQty +
+        ' шт · <span class="views-now">👁 ' + viewsNow + ' смотрят</span></div>'
       : '';
 
     return (
@@ -1037,7 +1113,8 @@ function renderProducts() {
           stockHtml +
         '</div>' +
         '<button class="addbtn" id="ab-' + p.id + '" onclick="event.stopPropagation();quickAdd(\'' + p.id + '\')">' +
-          '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
+          '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">' +
+            '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
           'В корзину' +
         '</button>' +
         '<button class="one-click-btn" onclick="event.stopPropagation();oneClickBuy(\'' + p.id + '\')" title="Купить в 1 клик">' +
@@ -1047,32 +1124,31 @@ function renderProducts() {
     );
   });
 
-  if (cardElements.length > 4) cardElements.splice(4, 0, loyaltyBanner);
-  if (cardElements.length > 10) cardElements.splice(10, 0, tgBanner);
+  // Вставляем баннер лояльности между карточками
+  if (cardElements.length > 4)  cardElements.splice(4,  0, loyaltyBanner);
 
-  const trustHtml =
-    '<div class="trust-bar">' +
-      '<div class="trust-item"><span>🚚</span><div><strong>Доставка завтра</strong><span>по Раменскому и области</span></div></div>' +
-      '<div class="trust-item"><span>✅</span><div><strong>Гарантия качества</strong><span>официальные дилеры брендов</span></div></div>' +
-      '<div class="trust-item"><span>📞</span><div><strong>Консультация бесплатно</strong><span>' + CONTACT_CFG.phone + '</span></div></div>' +
-      '<div class="trust-item"><span>🏷</span><div><strong>Цены ниже рынка</strong><span>работаем без посредников</span></div></div>' +
-    '</div>';
+  // ── Финальная сборка HTML ──────────────────────────────────────────────
+  content.innerHTML =
+    breadcrumb +
+    heroHtml +
+    trustHtml +
+    socialProofHtml +
+    calcHtml +
+    fbarHtml +
+    brandBarHtml +
+    '<div class="pgrid">' + cardElements.join('') + '</div>';
 
-  const ordersToday = 8 + (new Date().getHours() % 7); // 8-14 заказов
-  const socialProofHtml =
-    '<div class="social-proof">🔥 Сегодня оформлено <strong>' + ordersToday + ' заказов</strong> · Последний — ' + getLastOrderTime() + '</div>';
-
-  content.innerHTML = breadcrumb + heroHtml + trustHtml + socialProofHtml + calcHtml + fbarHtml + brandBarHtml + '<div class="pgrid">' + cardElements.join('') + '</div>';
-
-  // Инициализируем калькулятор страницы сразу после добавления в DOM
-  calcUpdate('page');
-
-  // Фасеты — вставляем перед pgrid
+  // ── Пост-рендер: всё DOM-зависимое в одном RAF ─────────────────────────
+  // (calcUpdate с RAF-guard в самой функции, но здесь явно ждём фрейма)
   requestAnimationFrame(() => {
+
+    // 1. Калькулятор — инициализируем после того как DOM точно готов
+    calcUpdate('page');
+
+    // 2. Фасеты — вставляем перед .pgrid
     const pgrid = content.querySelector('.pgrid');
     if (pgrid) {
-      const existFacets = document.getElementById('facets-bar');
-      if (existFacets) existFacets.remove();
+      document.getElementById('facets-bar')?.remove();
       const facetsHtml = buildFacetsHtml();
       if (facetsHtml) {
         const tmp = document.createElement('div');
@@ -1080,9 +1156,9 @@ function renderProducts() {
         content.insertBefore(tmp.firstChild, pgrid);
       }
     }
-    // История просмотров — внизу страницы
-    const existHist = document.getElementById('history-block');
-    if (existHist) existHist.remove();
+
+    // 3. История просмотров — внизу страницы
+    document.getElementById('history-block')?.remove();
     const histHtml = buildHistoryHtml();
     if (histHtml) {
       const wrap = document.createElement('div');
@@ -1090,8 +1166,10 @@ function renderProducts() {
       wrap.innerHTML = histHtml;
       content.appendChild(wrap);
     }
-  });
+
+  }); // end requestAnimationFrame
 }
+
 
 // ══ PRODUCT MODAL ══════════════════════════════════════════════════════════
 function findProd(id) {
@@ -1595,12 +1673,14 @@ function openCart() {
   document.getElementById('covl').style.display = '';
   document.getElementById('cpanel').style.display = 'flex';
   document.body.style.overflow = 'hidden';
+  setFloatVisibility(false);                     // ← скрываем виджет
 }
 
 function closeCart() {
   document.getElementById('covl').style.display = 'none';
   document.getElementById('cpanel').style.display = 'none';
   document.body.style.overflow = '';
+  setFloatVisibility(true);                      // ← возвращаем виджет
 }
 
 function renderCart() {
@@ -1652,17 +1732,45 @@ function rmFromCart(i) { cart.splice(i, 1); saveCart(); updateBadge(); renderCar
 // ══ CHECKOUT ════════════════════════════════════════════════════════════════
 function openCheckout() {
   if (!cart.length) return;
-  closeCart();
+  // Закрываем панель корзины напрямую (без setFloatVisibility)
+  document.getElementById('covl').style.display  = 'none';
+  document.getElementById('cpanel').style.display = 'none';
   checkoutFormState = {};
   renderCheckout();
   document.getElementById('covl2').style.display = 'flex';
   document.body.style.overflow = 'hidden';
+  setFloatVisibility(false);                     // ← виджет остаётся скрытым
 }
 
 function closeCheckout() {
   checkoutFormState = {};
   document.getElementById('covl2').style.display = 'none';
   document.body.style.overflow = '';
+  setFloatVisibility(true);                      // ← возвращаем виджет
+}
+
+function openProd(id) {
+  modalProd = findProd(id);
+  if (!modalProd) return;
+  modalVar = 0; modalImg = 0; modalQty = 1;
+  window._calcModalProd = modalProd;
+  window._calcModalVar  = 0;
+  addToHistory(id);
+  renderModal();
+  document.getElementById('movl').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  const urlSlug = (modalProd.id || id).split('--').pop();
+  setURLParam('product', urlSlug);
+  setFloatVisibility(false);                     // ← добавить
+}
+
+function closeMod() {
+  document.getElementById('movl').style.display = 'none';
+  document.body.style.overflow = '';
+  removeURLParam('product');
+  _modalCalcOpen = false;
+  window._calcModalProd = null;
+  setFloatVisibility(true);                      // ← добавить
 }
 
 function handleCOvl(e) { if (e.target === document.getElementById('covl2')) closeCheckout(); }
@@ -1887,31 +1995,35 @@ async function submitOrder() {
   const _TG_CHAT  = (typeof TG_CHAT_ID !== 'undefined' && typeof TG_CHAT_ID === 'string') ? TG_CHAT_ID : (window.TG_CHAT_ID || '' );
   const TG_CHAT   = _TG_CHAT;
 
-  const itemsList = order.items.map(i =>
-    `  • ${i.title} × ${i.qty} — ${i.price > 0 ? fmt(i.price * i.qty) + ' ₽' : 'по запросу'}`
+    const itemsList = order.items.map(i =>
+    '  • ' + tgEsc(i.title) + ' × ' + i.qty + ' — ' +
+    (i.price > 0 ? fmt(i.price * i.qty) + ' ₽' : 'по запросу')
   ).join('\n');
 
   const tgText = [
-    '🛒 *Новый заказ PLATFORMA*',
+    '🛒 *Новый заказ PLATFORMA*', '',
+    '👤 *Имя:* '     + tgEsc(order.name),
+    '📞 *Телефон:* ' + tgEsc(order.phone),
+    order.email   ? '📧 *Email:* '   + tgEsc(order.email)   : null,
     '',
-    `👤 *Имя:* ${order.name}`,
-    `📞 *Телефон:* ${order.phone}`,
-    order.email ? `📧 *Email:* ${order.email}` : null,
-    '',
-    `🚚 *Доставка:* ${order.delivery_method === 'pvz' ? 'Пункт выдачи' : 'Курьер'}`,
-    `📍 *Адрес:* ${order.address || '—'}`,
-    order.pvz_id ? `🔖 *ID ПВЗ:* ${order.pvz_id}` : null,
+    '🚚 *Доставка:* ' + (order.delivery_method === 'pvz' ? 'Пункт выдачи' : 'Курьер'),
+    '📍 *Адрес:* '   + tgEsc(order.address || '—'),
+    order.pvz_id  ? '🔖 *ID ПВЗ:* '  + tgEsc(String(order.pvz_id)) : null,
     '',
     '*Состав заказа:*',
-    itemsList,
-    '',
-    `💰 *Итого:* ${fmt(order.final_total)} ₽`,
-    order.loyalty_deducted > 0 ? `💳 *Списано с карты:* ${fmt(order.loyalty_deducted)} ₽` : null,
-    order.comment ? `💬 *Комментарий:* ${order.comment}` : null,
+    itemsList, '',
+    '💰 *Итого:* '   + fmt(order.final_total) + ' ₽',
+    order.loyalty_deducted > 0
+      ? '💳 *Списано с карты:* ' + fmt(order.loyalty_deducted) + ' ₽' : null,
+    order.comment
+      ? '💬 *Комментарий:* ' + tgEsc(order.comment) : null,
     order.callback_requested ? '📲 *Просит перезвонить*' : null,
     '',
-    `🕐 ${new Date().toLocaleString('ru-RU')}`,
+    '🕐 ' + new Date().toLocaleString('ru-RU'),
   ].filter(Boolean).join('\n');
+
+  await sendTG(tgText);
+
 
   try {
     await fetch(`https://api.telegram.org/bot${_TG_TOKEN}/sendMessage`, {
@@ -2607,13 +2719,21 @@ function injectProductSchema(product) {
   document.head.appendChild(script);
 }
 
+// ── Float widget: скрываем когда открыта любая панель/модал ────────────────
+function setFloatVisibility(show) {
+  const el = document.getElementById('float-cta');
+  if (!el) return;
+  el.style.display = show ? '' : 'none';
+  if (!show && typeof closeCallbackForm === 'function') closeCallbackForm();
+}
+
 // ══ FLOATING CONTACT WIDGET ════════════════════════════════════════════════
 // Конфиг: замени номер телефона и ссылку WA на свои
 const CONTACT_CFG = {
-  phone:     '+78001234567',          // номер для звонка и WA
-  wa:        'https://wa.me/78001234567', // ссылка WhatsApp (можно добавить ?text=...)
-  tg:        'https://t.me/platforma_support', // Telegram менеджера
-  workHours: '9:00–20:00',
+  phone:     '+79332033005',          // номер для звонка и WA
+  wa:        'https://wa.me/79332033005', // ссылка WhatsApp (можно добавить ?text=...)
+  tg:        'https://t.me/bot_pumpdump_bot', // Telegram менеджера
+  workHours: '9:00–18:00',
 };
 
 function buildFloatWidget() {
@@ -2777,43 +2897,35 @@ function closeCallbackForm() {
   document.getElementById('callback-form')?.remove();
 }
 
-async function submitCallback() {
-  const phone = document.getElementById('cb-phone')?.value.trim();
-  const name  = document.getElementById('cb-name')?.value.trim() || 'Клиент';
-  if (!phone || phone.length < 5) {
-    document.getElementById('cb-phone')?.classList.add('error');
+async function submitCallback(e) {
+  if (e) e.preventDefault();
+  const f = document.getElementById('cb-form');
+  if (!f) return;
+  const name = f.querySelector('[name="name"]')?.value?.trim() || '';
+  const phone = f.querySelector('[name="phone"]')?.value?.trim() || '';
+
+  if (!phone) {
+    alert('Пожалуйста, введите номер телефона');
     return;
   }
 
-  const _TG_TOKEN = (typeof TG_TOKEN !== 'undefined' && typeof TG_TOKEN === 'string') ? TG_TOKEN : (window.TG_TOKEN || '');
-  const _TG_CHAT  = (typeof TG_CHAT_ID !== 'undefined' && typeof TG_CHAT_ID === 'string') ? TG_CHAT_ID : (window.TG_CHAT_ID || '');
-
-  const text = `📞 *Заявка на звонок — PLATFORMA*\n\n👤 *Имя:* ${name}\n📱 *Телефон:* ${phone}\n🕐 ${new Date().toLocaleString('ru-RU')}`;
-
   try {
-    await fetch(`https://api.telegram.org/bot${_TG_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: _TG_CHAT, text, parse_mode: 'Markdown' })
-    });
-  } catch(e) { console.error('callback send error', e); }
+    const text = '📞 *Заявка на звонок — PLATFORMA*\n\n' +
+      '👤 *Имя:* '    + tgEsc(name)  + '\n' +
+      '📱 *Телефон:* ' + tgEsc(phone) + '\n' +
+      '🕐 '           + new Date().toLocaleString('ru-RU');
 
-  // Успех
-  const form = document.getElementById('callback-form');
-  if (form) {
-    form.innerHTML = `
-      <div style="text-align:center;padding:10px 0">
-        <div style="font-size:32px;margin-bottom:10px">✅</div>
-        <h4 style="margin:0 0 6px;color:var(--text,#111)">Заявка принята!</h4>
-        <p style="margin:0;font-size:13px;color:var(--muted,#888)">Перезвоним на номер<br><strong>${phone}</strong></p>
-        <button class="cb-submit" style="margin-top:14px" onclick="closeCallbackForm()">Закрыть</button>
-      </div>
-    `;
-    setTimeout(closeCallbackForm, 4000);
+    await sendTG(text);
+
+    // Сброс формы и закрытие модалки/уведомление
+    f.reset();
+    const modal = document.getElementById('callback-modal');
+    if (modal) modal.style.display = 'none';
+    alert('Заявка успешно отправлена! Мы свяжемся с вами в ближайшее время.');
+  } catch (err) {
+    console.error(err);
+    alert('Ошибка при отправке заявки. Пожалуйста, попробуйте позже.');
   }
-
-  // Трекинг Яндекс.Метрика
-  if (window.ym) ym(109166481, 'reachGoal', 'callback_request');
 }
 
 // ══ ИНИЦИАЛИЗАЦИЯ FLOAT WIDGET ══════════════════════════════════════════════
@@ -3958,40 +4070,40 @@ function oneClickBuy(prodId) {
   });
 }
 
-async function submitOneClick(prodId, price, title) {
-  const phone = document.getElementById('oc-phone')?.value.trim();
-  const digits = (phone || '').replace(/\D/g,'');
-  if (digits.length < 10) {
-    document.getElementById('oc-phone')?.classList.add('error');
+async function submitOneClick(e) {
+  if (e) e.preventDefault();
+  if (!modalProd) return;
+
+  const phoneInput = document.querySelector('.oc-input');
+  const phone = phoneInput ? phoneInput.value.trim() : '';
+
+  if (!phone) {
+    alert('Пожалуйста, введите номер телефона');
     return;
   }
 
-  const _TG_TOKEN = (typeof TG_TOKEN !== 'undefined') ? TG_TOKEN : (window.TG_TOKEN || '');
-  const _TG_CHAT  = (typeof TG_CHAT_ID !== 'undefined') ? TG_CHAT_ID : (window.TG_CHAT_ID || '');
-
-  const text = '⚡ *Покупка в 1 клик — PLATFORMA*\n\n' +
-    '📦 *Товар:* ' + title + '\n' +
-    '💰 *Цена:* ' + fmt(price) + ' ₽\n' +
-    '📱 *Телефон:* ' + phone + '\n' +
-    '🕐 ' + new Date().toLocaleString('ru-RU');
+  // Вычисляем цену с учётом модификатора (варианта), если применимо
+  const variant = modalProd.variants?.[modalVar];
+  const price = variant ? variant.price * PRICE_BASE : modalProd.price * PRICE_BASE;
+  const title = modalProd.name + (variant ? ` (${variant.name})` : '');
 
   try {
-    await fetch('https://api.telegram.org/bot' + _TG_TOKEN + '/sendMessage', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: _TG_CHAT, text, parse_mode: 'Markdown' })
-    });
-  } catch(e) { console.error(e); }
+    const text = '⚡ *Покупка в 1 клик — PLATFORMA*\n\n' +
+      '📦 *Товар:* '   + tgEsc(title)           + '\n' +
+      '💰 *Цена:* '    + fmt(price)   + ' ₽\n'  +
+      '📱 *Телефон:* ' + tgEsc(phone)            + '\n' +
+      '🕐 '            + new Date().toLocaleString('ru-RU');
 
-  document.getElementById('one-click-overlay').innerHTML =
-    '<div class="oc-modal" style="text-align:center;padding:40px 24px">' +
-      '<div style="font-size:48px;margin-bottom:16px">✅</div>' +
-      '<h3 style="margin:0 0 8px;font-family:var(--fh)">Заявка принята!</h3>' +
-      '<p style="color:var(--muted);font-size:14px">Перезвоним на номер<br><strong>' + phone + '</strong><br>в течение 10 минут</p>' +
-      '<button class="oc-submit" style="margin-top:20px" onclick="document.getElementById(\'one-click-overlay\').remove()">Закрыть</button>' +
-    '</div>';
+    await sendTG(text);
 
-  if (window.ym) ym(109166481, 'reachGoal', 'one_click_buy');
+    if (phoneInput) phoneInput.value = '';
+    closeOneClick();
+    closeModal();
+    alert('Спасибо! Заказ оформлен, менеджер уже связывается с вами.');
+  } catch (err) {
+    console.error(err);
+    alert('Не удалось оформить заказ. Попробуйте ещё раз.');
+  }
 }
 
 function getLastOrderTime() {
@@ -4043,26 +4155,32 @@ function showExitIntent() {
   }
 }
 
-async function submitExitIntent() {
-  const phone = document.getElementById('exit-phone')?.value.trim();
-  const digits = (phone || '').replace(/\D/g,'');
-  if (digits.length < 10) {
-    document.getElementById('exit-phone')?.classList.add('error');
+async function submitExitIntent(e) {
+  if (e) e.preventDefault();
+  const input = document.querySelector('.ei-input');
+  const phone = input ? input.value.trim() : '';
+
+  if (!phone) {
+    alert('Пожалуйста, введите номер телефона');
     return;
   }
-  const _TG_TOKEN = (typeof TG_TOKEN !== 'undefined') ? TG_TOKEN : (window.TG_TOKEN || '');
-  const _TG_CHAT  = (typeof TG_CHAT_ID !== 'undefined') ? TG_CHAT_ID : (window.TG_CHAT_ID || '');
-  const cat = activeCat?.name || 'каталог';
-  const text = '🎁 *Запрос расчёта — PLATFORMA*\n\n📱 *Телефон:* ' + phone + '\n📂 *Категория:* ' + cat + '\n🕐 ' + new Date().toLocaleString('ru-RU');
+
   try {
-    await fetch('https://api.telegram.org/bot' + _TG_TOKEN + '/sendMessage', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: _TG_CHAT, text, parse_mode: 'Markdown' })
-    });
-  } catch(e) {}
-  const ovl = document.getElementById('exit-ovl');
-  if (ovl) ovl.innerHTML = '<div class="exit-modal" style="text-align:center;padding:40px 24px"><div style="font-size:48px;margin-bottom:16px">✅</div><h3 style="margin:0 0 8px;font-family:var(--fh)">Отлично!</h3><p style="color:var(--muted)">Перезвоним и рассчитаем проект<br>по номеру <strong>' + phone + '</strong></p><button class="oc-submit" style="margin-top:20px" onclick="document.getElementById(\'exit-ovl\').remove()">Закрыть</button></div>';
-  if (window.ym) ym(109166481, 'reachGoal', 'exit_intent');
+    const text = '🎁 *Запрос расчёта — PLATFORMA*\n\n' +
+      '📱 *Телефон:* '   + tgEsc(phone) + '\n' +
+      '📂 *Категория:* ' + tgEsc(activeCat?.name || 'каталог') + '\n' +
+      '🕐 '              + new Date().toLocaleString('ru-RU');
+
+    await sendTG(text);
+
+    if (input) input.value = '';
+    const eiModal = document.getElementById('exit-intent-modal');
+    if (eiModal) eiModal.remove(); // или .style.display = 'none'
+    alert('Спасибо! Мы вышлем расчет стоимости в течение 15 минут.');
+  } catch (err) {
+    console.error(err);
+    alert('Произошла ошибка. Пожалуйста, попробуйте позже.');
+  }
 }
 
 // ══ CSS: новые маркетинговые элементы ══════════════════════════════════════
